@@ -1,32 +1,34 @@
 import React, { useEffect, useState } from 'react'
 import { PackagePlus, Search, CheckCircle } from 'lucide-react'
 import { productApi, stockApi } from '../api/api'
-import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function StockEntry({ showToast }) {
   const [products, setProducts] = useState([])
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
   const [quantity, setQuantity] = useState('')
-  const [reason, setReason] = useState('')
-  const [reference, setReference] = useState('')
+  const [unitCost, setUnitCost] = useState('')
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    productApi.getAll().then(r => setProducts(r.data)).catch(() => {})
+    productApi.list({ active: true, size: 500, sort: 'name' })
+      .then(data => setProducts(data.content))
+      .catch(() => {})
   }, [])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.sku.toLowerCase().includes(search.toLowerCase())
+    (p.ean || '').toLowerCase().includes(search.toLowerCase())
   )
 
   const validate = () => {
     const e = {}
     if (!selected) e.product = 'Selecione um produto'
-    if (!quantity || isNaN(quantity) || parseInt(quantity) < 1) e.quantity = 'Informe uma quantidade válida (mínimo 1)'
+    if (!quantity || isNaN(quantity) || Number(quantity) <= 0) e.quantity = 'Informe uma quantidade válida (mínimo 1)'
+    if (unitCost && (isNaN(unitCost) || Number(unitCost) < 0)) e.unitCost = 'Informe um custo válido'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -36,13 +38,17 @@ export default function StockEntry({ showToast }) {
     if (!validate()) return
     setSaving(true)
     try {
-      await stockApi.registerEntry({ productId: selected.id, quantity: parseInt(quantity), reason, reference, type: 'ENTRY' })
+      const movement = await stockApi.adjust({
+        productId: selected.id,
+        type: 'ENTRY',
+        quantity: Number(quantity),
+        unitCost: unitCost ? Number(unitCost) : undefined,
+        notes: notes || undefined
+      })
       setSuccess(true)
-      setQuantity(''); setReason(''); setReference(''); setErrors({})
+      setSelected(p => ({ ...p, currentStock: movement.stockAfter }))
+      setQuantity(''); setUnitCost(''); setNotes(''); setErrors({})
       showToast(`Entrada de ${quantity} unidade(s) registrada com sucesso!`)
-      // Refresh selected product
-      const r = await productApi.getById(selected.id)
-      setSelected(r.data)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       showToast(err.message, 'error')
@@ -66,7 +72,7 @@ export default function StockEntry({ showToast }) {
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>1. Escolha o Produto</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e2e8f0') }}>
             <Search size={18} color="#94a3b8" />
-            <input placeholder="Digite o nome ou código..." value={search}
+            <input placeholder="Digite o nome ou EAN..." value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ border: 'none', background: 'none', outline: 'none', fontSize: 15, flex: 1 }} />
           </div>
@@ -83,9 +89,8 @@ export default function StockEntry({ showToast }) {
                 }}>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
                 <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#64748b' }}>
-                  <span>Cód: {p.sku}</span>
-                  <span>•</span>
-                  <span>Em estoque: <strong style={{ color: '#1e293b' }}>{p.quantityInStock}</strong></span>
+                  {p.ean && <><span>EAN: {p.ean}</span><span>•</span></>}
+                  <span>Em estoque: <strong style={{ color: '#1e293b' }}>{p.currentStock}</strong></span>
                 </div>
               </div>
             ))}
@@ -101,7 +106,7 @@ export default function StockEntry({ showToast }) {
             <div style={{ background: '#eff6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid #bfdbfe' }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.name}</div>
               <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
-                Estoque atual: <strong style={{ color: '#1e293b', fontSize: 18 }}>{selected.quantityInStock}</strong> unidades
+                Estoque atual: <strong style={{ color: '#1e293b', fontSize: 18 }}>{selected.currentStock}</strong> unidades
               </div>
             </div>
           ) : (
@@ -119,20 +124,23 @@ export default function StockEntry({ showToast }) {
                 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center' }} />
               {errors.quantity && <span className="form-error">{errors.quantity}</span>}
               {selected && quantity && !errors.quantity && (
-                <span className="form-hint">Estoque ficará em: <strong>{selected.quantityInStock + parseInt(quantity || 0)}</strong> unidades</span>
+                <span className="form-hint">Estoque ficará em: <strong>{selected.currentStock + Number(quantity || 0)}</strong> unidades</span>
               )}
             </div>
 
             <div className="form-group">
-              <label className="form-label">Motivo / Observação</label>
-              <input className="form-input" placeholder="Ex: Compra de reposição, doação..." value={reason}
-                onChange={e => setReason(e.target.value)} />
+              <label className="form-label">Custo unitário (R$)</label>
+              <input className={`form-input${errors.unitCost ? ' error' : ''}`} type="number" step="0.01" min="0"
+                placeholder="0,00" value={unitCost}
+                onChange={e => { setUnitCost(e.target.value); setErrors(p => ({ ...p, unitCost: '' })) }} />
+              {errors.unitCost && <span className="form-error">{errors.unitCost}</span>}
+              <span className="form-hint">Usado para calcular o custo médio do produto</span>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Número do pedido / referência</label>
-              <input className="form-input" placeholder="Ex: NF-001, Pedido #123..." value={reference}
-                onChange={e => setReference(e.target.value)} />
+              <label className="form-label">Observação</label>
+              <input className="form-input" placeholder="Ex: Compra de reposição, NF-001..." value={notes}
+                onChange={e => setNotes(e.target.value)} />
             </div>
 
             {success && (

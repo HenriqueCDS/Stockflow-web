@@ -4,10 +4,13 @@ import { productApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ConfirmModal from '../components/ConfirmModal'
 
-const emptyForm = { name: '', sku: '', description: '', category: '', unitPrice: '', quantityInStock: '', minimumStock: '' }
+const emptyForm = { name: '', ean: '', category: '', unit: '', minimumStock: '' }
+const PAGE_SIZE = 20
 
 export default function Products({ showToast }) {
   const [products, setProducts] = useState([])
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -17,31 +20,29 @@ export default function Products({ showToast }) {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const load = () => {
+  const load = (targetPage = 0, name = search) => {
     setLoading(true)
-    productApi.getAll()
-      .then(r => setProducts(r.data))
+    productApi.list({ page: targetPage, size: PAGE_SIZE, sort: 'name', name: name || undefined })
+      .then(data => {
+        setProducts(data.content)
+        setPage(data.page)
+        setTotalPages(data.totalPages)
+      })
       .catch(() => showToast('Erro ao carregar produtos', 'error'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(0) }, [])
 
-  const handleSearch = async (val) => {
+  const handleSearch = (val) => {
     setSearch(val)
-    if (!val.trim()) { load(); return }
-    try {
-      const r = await productApi.search(val)
-      setProducts(r.data)
-    } catch {}
+    load(0, val)
   }
 
   const validate = () => {
     const e = {}
     if (!form.name.trim()) e.name = 'Informe o nome do produto'
-    if (!form.sku.trim()) e.sku = 'Informe o código do produto'
-    if (!form.unitPrice || isNaN(form.unitPrice) || Number(form.unitPrice) < 0) e.unitPrice = 'Informe um preço válido'
-    if (form.quantityInStock === '' || isNaN(form.quantityInStock) || Number(form.quantityInStock) < 0) e.quantityInStock = 'Informe a quantidade inicial'
+    if (form.minimumStock !== '' && (isNaN(form.minimumStock) || Number(form.minimumStock) < 0)) e.minimumStock = 'Informe um valor válido'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -50,17 +51,23 @@ export default function Products({ showToast }) {
     e.preventDefault()
     if (!validate()) return
     setSaving(true)
-    const data = { ...form, unitPrice: parseFloat(form.unitPrice), quantityInStock: parseInt(form.quantityInStock), minimumStock: form.minimumStock ? parseInt(form.minimumStock) : null }
+    const data = {
+      name: form.name.trim(),
+      ean: form.ean.trim() || undefined,
+      category: form.category.trim() || undefined,
+      unit: form.unit.trim() || undefined,
+      minimumStock: form.minimumStock !== '' ? Number(form.minimumStock) : undefined
+    }
     try {
       if (editing) {
         await productApi.update(editing.id, data)
         showToast('Produto atualizado com sucesso!')
       } else {
         await productApi.create(data)
-        showToast('Produto cadastrado com sucesso!')
+        showToast('Produto cadastrado com sucesso! Use "Dar Entrada" para adicionar estoque.')
       }
       setShowForm(false); setEditing(null); setForm(emptyForm); setErrors({})
-      load()
+      load(page)
     } catch (err) {
       showToast(err.message, 'error')
     } finally {
@@ -70,7 +77,7 @@ export default function Products({ showToast }) {
 
   const handleEdit = (p) => {
     setEditing(p)
-    setForm({ name: p.name, sku: p.sku, description: p.description || '', category: p.category || '', unitPrice: p.unitPrice, quantityInStock: p.quantityInStock, minimumStock: p.minimumStock || '' })
+    setForm({ name: p.name, ean: p.ean || '', category: p.category || '', unit: p.unit || '', minimumStock: p.minimumStock ?? '' })
     setShowForm(true)
     setErrors({})
   }
@@ -80,11 +87,13 @@ export default function Products({ showToast }) {
       await productApi.deactivate(confirmDelete.id)
       showToast('Produto desativado com sucesso!')
       setConfirmDelete(null)
-      load()
+      load(page)
     } catch (err) {
       showToast(err.message, 'error')
     }
   }
+
+  const formatCurrency = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
   const inp = (field) => ({
     className: `form-input${errors[field] ? ' error' : ''}`,
@@ -126,35 +135,31 @@ export default function Products({ showToast }) {
                 {errors.name && <span className="form-error">{errors.name}</span>}
               </div>
               <div className="form-group">
-                <label className="form-label">Código (SKU) <span>*</span></label>
-                <input {...inp('sku')} placeholder="Ex: ARR-5KG-01" />
-                {errors.sku && <span className="form-error">{errors.sku}</span>}
-                <span className="form-hint">Código único para identificar o produto</span>
+                <label className="form-label">EAN (código de barras)</label>
+                <input {...inp('ean')} placeholder="Ex: 7891234567890" maxLength={14} />
+                <span className="form-hint">Usado para identificar o produto nas notas fiscais</span>
               </div>
               <div className="form-group">
                 <label className="form-label">Categoria</label>
                 <input {...inp('category')} placeholder="Ex: Alimentos, Bebidas..." />
               </div>
               <div className="form-group">
-                <label className="form-label">Preço Unitário (R$) <span>*</span></label>
-                <input {...inp('unitPrice')} type="number" step="0.01" min="0" placeholder="0,00" />
-                {errors.unitPrice && <span className="form-error">{errors.unitPrice}</span>}
+                <label className="form-label">Unidade</label>
+                <input {...inp('unit')} placeholder="Ex: UN, KG, CX..." maxLength={20} />
               </div>
               <div className="form-group">
-                <label className="form-label">Quantidade Inicial <span>*</span></label>
-                <input {...inp('quantityInStock')} type="number" min="0" placeholder="0" />
-                {errors.quantityInStock && <span className="form-error">{errors.quantityInStock}</span>}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Quantidade Mínima</label>
+                <label className="form-label">Estoque Mínimo</label>
                 <input {...inp('minimumStock')} type="number" min="0" placeholder="0" />
+                {errors.minimumStock && <span className="form-error">{errors.minimumStock}</span>}
                 <span className="form-hint">Você será alertado quando o estoque chegar nesse valor</span>
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Descrição</label>
-              <input {...inp('description')} placeholder="Informações adicionais sobre o produto" />
-            </div>
+            {!editing && (
+              <div className="alert alert-warning">
+                <AlertTriangle size={18} />
+                <span>O estoque começa zerado. Depois de cadastrar, use "Dar Entrada" para registrar a chegada de produtos.</span>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="button" className="btn btn-outline" onClick={() => { setShowForm(false); setEditing(null) }}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Salvando...' : (editing ? 'Salvar Alterações' : 'Cadastrar Produto')}</button>
@@ -177,43 +182,50 @@ export default function Products({ showToast }) {
               <thead>
                 <tr>
                   <th>Produto</th>
-                  <th>Código</th>
+                  <th>EAN</th>
                   <th>Categoria</th>
-                  <th>Preço</th>
+                  <th>Custo Médio</th>
                   <th>Em Estoque</th>
+                  <th>Valor Total</th>
                   <th>Situação</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map(p => (
-                  <tr key={p.id}>
+                  <tr key={p.id} style={{ opacity: p.active ? 1 : 0.6 }}>
                     <td>
                       <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      {p.description && <div style={{ fontSize: 13, color: '#64748b' }}>{p.description}</div>}
+                      {p.unit && <div style={{ fontSize: 13, color: '#64748b' }}>Unidade: {p.unit}</div>}
                     </td>
-                    <td><span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>{p.sku}</span></td>
+                    <td><span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>{p.ean || '—'}</span></td>
                     <td>{p.category || '—'}</td>
-                    <td>R$ {Number(p.unitPrice).toFixed(2).replace('.', ',')}</td>
+                    <td>{formatCurrency(p.averageCost)}</td>
                     <td>
-                      <span style={{ fontWeight: 700, fontSize: 18, color: p.quantityInStock === 0 ? '#dc2626' : p.belowMinimumStock ? '#d97706' : '#16a34a' }}>
-                        {p.quantityInStock}
+                      <span style={{ fontWeight: 700, fontSize: 18, color: p.currentStock <= 0 ? '#dc2626' : p.belowMinimum ? '#d97706' : '#16a34a' }}>
+                        {p.currentStock}
                       </span>
-                      {p.minimumStock && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 6 }}>mín: {p.minimumStock}</span>}
+                      {p.minimumStock != null && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 6 }}>mín: {p.minimumStock}</span>}
                     </td>
+                    <td>{formatCurrency(p.totalValue)}</td>
                     <td>
-                      {p.quantityInStock === 0 ? <span className="badge badge-danger">Sem estoque</span>
-                        : p.belowMinimumStock ? <span className="badge badge-warning"><AlertTriangle size={12} /> Estoque baixo</span>
-                          : <span className="badge badge-success">Normal</span>}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {!p.active && <span className="badge badge-gray">Inativo</span>}
+                        {p.currentStock <= 0 ? <span className="badge badge-danger">Sem estoque</span>
+                          : p.belowMinimum ? <span className="badge badge-warning"><AlertTriangle size={12} /> Estoque baixo</span>
+                            : <span className="badge badge-success">Normal</span>}
+                      </div>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button className="btn btn-outline" style={{ padding: '7px 12px' }} onClick={() => handleEdit(p)}>
                           <Edit2 size={15} />
                         </button>
-                        <button className="btn" style={{ padding: '7px 12px', background: '#fee2e2', color: '#dc2626', border: 'none' }} onClick={() => setConfirmDelete(p)}>
-                          <Trash2 size={15} />
-                        </button>
+                        {p.active && (
+                          <button className="btn" style={{ padding: '7px 12px', background: '#fee2e2', color: '#dc2626', border: 'none' }} onClick={() => setConfirmDelete(p)}>
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -222,10 +234,18 @@ export default function Products({ showToast }) {
             </table>
           </div>
         )}
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: 16, borderTop: '1px solid #e2e8f0' }}>
+            <button className="btn btn-outline" disabled={page === 0} onClick={() => load(page - 1)}>Anterior</button>
+            <span style={{ fontSize: 14, color: '#64748b' }}>Página {page + 1} de {totalPages}</span>
+            <button className="btn btn-outline" disabled={page >= totalPages - 1} onClick={() => load(page + 1)}>Próxima</button>
+          </div>
+        )}
       </div>
 
       {confirmDelete && (
-        <ConfirmModal title="Desativar produto?" message={`Tem certeza que deseja desativar "${confirmDelete.name}"? O produto não aparecerá mais na lista, mas o histórico será mantido.`}
+        <ConfirmModal title="Desativar produto?" message={`Tem certeza que deseja desativar "${confirmDelete.name}"? O produto não aparecerá mais na lista de ativos, mas o histórico será mantido.`}
           confirmLabel="Sim, desativar" danger onConfirm={handleDelete} onCancel={() => setConfirmDelete(null)} />
       )}
     </div>

@@ -1,19 +1,29 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Package, PackagePlus, PackageMinus, AlertTriangle, BarChart3, TrendingDown } from 'lucide-react'
-import { reportApi } from '../api/api'
+import { Package, PackagePlus, PackageMinus, AlertTriangle, BarChart3, DollarSign, ArrowUpCircle, ArrowDownCircle, RefreshCw, RotateCcw } from 'lucide-react'
+import { dashboardApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 
+const typeIcons = {
+  ENTRY: { Icon: ArrowUpCircle, color: '#16a34a' },
+  EXIT: { Icon: ArrowDownCircle, color: '#dc2626' },
+  ADJUSTMENT: { Icon: RefreshCw, color: '#2563eb' },
+  RETURN: { Icon: RotateCcw, color: '#7c3aed' }
+}
+
 export default function Dashboard() {
-  const [report, setReport] = useState(null)
+  const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    reportApi.getGeneralReport()
-      .then(r => setReport(r.data))
+    dashboardApi.get()
+      .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  const formatCurrency = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const formatDate = (d) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
   const quickActions = [
     { to: '/entrada', icon: PackagePlus, label: 'Dar Entrada no Estoque', desc: 'Registre a chegada de produtos', color: '#16a34a', bg: '#dcfce7' },
@@ -49,7 +59,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      {loading ? <LoadingSpinner text="Carregando informações..." /> : report && (
+      {loading ? <LoadingSpinner text="Carregando informações..." /> : data && (
         <>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Resumo do Estoque</h2>
           <div className="stats-grid">
@@ -58,7 +68,7 @@ export default function Dashboard() {
                 <Package size={26} color="#2563eb" />
               </div>
               <div className="stat-info">
-                <h3 style={{ color: '#2563eb' }}>{report.totalProducts}</h3>
+                <h3 style={{ color: '#2563eb' }}>{data.totalProducts}</h3>
                 <p>Produtos cadastrados</p>
               </div>
             </div>
@@ -67,7 +77,7 @@ export default function Dashboard() {
                 <Package size={26} color="#16a34a" />
               </div>
               <div className="stat-info">
-                <h3 style={{ color: '#16a34a' }}>{report.activeProducts}</h3>
+                <h3 style={{ color: '#16a34a' }}>{data.activeProducts}</h3>
                 <p>Produtos ativos</p>
               </div>
             </div>
@@ -76,27 +86,48 @@ export default function Dashboard() {
                 <AlertTriangle size={26} color="#d97706" />
               </div>
               <div className="stat-info">
-                <h3 style={{ color: '#d97706' }}>{report.productsWithLowStock}</h3>
+                <h3 style={{ color: '#d97706' }}>{data.lowStockProducts}</h3>
                 <p>Com estoque baixo</p>
               </div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{ background: '#fee2e2' }}>
-                <TrendingDown size={26} color="#dc2626" />
+              <div className="stat-icon" style={{ background: '#ede9fe' }}>
+                <DollarSign size={26} color="#7c3aed" />
               </div>
               <div className="stat-info">
-                <h3 style={{ color: '#dc2626' }}>{report.productsOutOfStock}</h3>
-                <p>Sem estoque</p>
+                <h3 style={{ color: '#7c3aed', fontSize: 20 }}>{formatCurrency(data.totalStockValue)}</h3>
+                <p>Valor total em estoque</p>
               </div>
             </div>
           </div>
 
-          {report.productsWithLowStock > 0 && (
+          {data.lowStockProducts > 0 && (
             <div className="alert alert-warning">
               <AlertTriangle size={20} />
               <div>
-                <strong>Atenção!</strong> {report.productsWithLowStock} produto(s) estão com estoque abaixo do mínimo.
+                <strong>Atenção!</strong> {data.lowStockProducts} produto(s) estão com estoque abaixo do mínimo.
                 <Link to="/relatorios" style={{ marginLeft: 8, color: '#92400e', fontWeight: 600 }}>Ver detalhes →</Link>
+              </div>
+            </div>
+          )}
+
+          {data.recentMovements?.length > 0 && (
+            <div className="card" style={{ marginTop: 8 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>Movimentações Recentes</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {data.recentMovements.map(m => {
+                  const { Icon, color } = typeIcons[m.type] || typeIcons.ENTRY
+                  return (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', borderBottom: '1px solid #f1f5f9' }}>
+                      <Icon size={20} color={color} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{m.productName}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDate(m.createdAt)}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color }}>{m.type === 'EXIT' ? '-' : '+'}{m.quantity}</div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
