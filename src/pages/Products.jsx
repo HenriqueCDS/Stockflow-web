@@ -4,7 +4,8 @@ import { productApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ConfirmModal from '../components/ConfirmModal'
 
-const emptyForm = { name: '', sku: '', description: '', category: '', unitPrice: '', quantityInStock: '', minimumStock: '' }
+const emptyForm = { name: '', ean: '', category: '', unit: '', minimumStock: '' }
+const fmtMoney = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 export default function Products({ showToast }) {
   const [products, setProducts] = useState([])
@@ -17,31 +18,26 @@ export default function Products({ showToast }) {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const load = () => {
+  const load = (name = search) => {
     setLoading(true)
-    productApi.getAll()
-      .then(r => setProducts(r.data))
+    productApi.getAll({ active: true, ...(name.trim() ? { name: name.trim() } : {}) })
+      .then(r => setProducts(r.data.content || []))
       .catch(() => showToast('Erro ao carregar produtos', 'error'))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [])
 
-  const handleSearch = async (val) => {
+  const handleSearch = (val) => {
     setSearch(val)
-    if (!val.trim()) { load(); return }
-    try {
-      const r = await productApi.search(val)
-      setProducts(r.data)
-    } catch {}
+    load(val)
   }
 
   const validate = () => {
     const e = {}
     if (!form.name.trim()) e.name = 'Informe o nome do produto'
-    if (!form.sku.trim()) e.sku = 'Informe o código do produto'
-    if (!form.unitPrice || isNaN(form.unitPrice) || Number(form.unitPrice) < 0) e.unitPrice = 'Informe um preço válido'
-    if (form.quantityInStock === '' || isNaN(form.quantityInStock) || Number(form.quantityInStock) < 0) e.quantityInStock = 'Informe a quantidade inicial'
+    if (form.ean.length > 14) e.ean = 'O código de barras deve ter no máximo 14 caracteres'
+    if (form.minimumStock !== '' && (isNaN(form.minimumStock) || Number(form.minimumStock) < 0)) e.minimumStock = 'Informe uma quantidade válida'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -50,7 +46,13 @@ export default function Products({ showToast }) {
     e.preventDefault()
     if (!validate()) return
     setSaving(true)
-    const data = { ...form, unitPrice: parseFloat(form.unitPrice), quantityInStock: parseInt(form.quantityInStock), minimumStock: form.minimumStock ? parseInt(form.minimumStock) : null }
+    const data = {
+      name: form.name.trim(),
+      ean: form.ean.trim() || null,
+      category: form.category.trim() || null,
+      unit: form.unit.trim() || null,
+      minimumStock: form.minimumStock !== '' ? Number(form.minimumStock) : null
+    }
     try {
       if (editing) {
         await productApi.update(editing.id, data)
@@ -70,7 +72,7 @@ export default function Products({ showToast }) {
 
   const handleEdit = (p) => {
     setEditing(p)
-    setForm({ name: p.name, sku: p.sku, description: p.description || '', category: p.category || '', unitPrice: p.unitPrice, quantityInStock: p.quantityInStock, minimumStock: p.minimumStock || '' })
+    setForm({ name: p.name, ean: p.ean || '', category: p.category || '', unit: p.unit || '', minimumStock: p.minimumStock ?? '' })
     setShowForm(true)
     setErrors({})
   }
@@ -96,8 +98,8 @@ export default function Products({ showToast }) {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Produtos</h1>
-          <p className="page-subtitle">Gerencie os produtos do seu estoque</p>
+          <h1 className="page-title">Estoque</h1>
+          <div className="eyebrow">{products.length} itens</div>
         </div>
         <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditing(null); setForm(emptyForm); setErrors({}) }}>
           <Plus size={18} /> Adicionar Produto
@@ -107,7 +109,7 @@ export default function Products({ showToast }) {
       {/* Search */}
       <div className="card" style={{ marginBottom: 20, padding: '14px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Search size={20} color="#94a3b8" />
+          <Search size={20} color="#9a9a92" />
           <input className="form-input" placeholder="Pesquisar produto por nome..." value={search}
             onChange={e => handleSearch(e.target.value)}
             style={{ border: 'none', boxShadow: 'none', padding: '8px 0', fontSize: 16, flex: 1 }} />
@@ -116,7 +118,7 @@ export default function Products({ showToast }) {
 
       {/* Form */}
       {showForm && (
-        <div className="card" style={{ marginBottom: 24, borderTop: '3px solid #2563eb' }}>
+        <div className="card" style={{ marginBottom: 24, borderTop: '3px solid #ff7a00' }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>{editing ? 'Editar Produto' : 'Novo Produto'}</h2>
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0 20px' }}>
@@ -126,35 +128,26 @@ export default function Products({ showToast }) {
                 {errors.name && <span className="form-error">{errors.name}</span>}
               </div>
               <div className="form-group">
-                <label className="form-label">Código (SKU) <span>*</span></label>
-                <input {...inp('sku')} placeholder="Ex: ARR-5KG-01" />
-                {errors.sku && <span className="form-error">{errors.sku}</span>}
-                <span className="form-hint">Código único para identificar o produto</span>
+                <label className="form-label">Código de barras (EAN)</label>
+                <input {...inp('ean')} maxLength={14} placeholder="Ex: 7891234567890" />
+                {errors.ean && <span className="form-error">{errors.ean}</span>}
               </div>
               <div className="form-group">
                 <label className="form-label">Categoria</label>
                 <input {...inp('category')} placeholder="Ex: Alimentos, Bebidas..." />
               </div>
               <div className="form-group">
-                <label className="form-label">Preço Unitário (R$) <span>*</span></label>
-                <input {...inp('unitPrice')} type="number" step="0.01" min="0" placeholder="0,00" />
-                {errors.unitPrice && <span className="form-error">{errors.unitPrice}</span>}
+                <label className="form-label">Unidade</label>
+                <input {...inp('unit')} maxLength={20} placeholder="Ex: un, kg, L" />
               </div>
               <div className="form-group">
-                <label className="form-label">Quantidade Inicial <span>*</span></label>
-                <input {...inp('quantityInStock')} type="number" min="0" placeholder="0" />
-                {errors.quantityInStock && <span className="form-error">{errors.quantityInStock}</span>}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Quantidade Mínima</label>
-                <input {...inp('minimumStock')} type="number" min="0" placeholder="0" />
+                <label className="form-label">Estoque Mínimo</label>
+                <input {...inp('minimumStock')} type="number" min="0" step="any" placeholder="0" />
+                {errors.minimumStock && <span className="form-error">{errors.minimumStock}</span>}
                 <span className="form-hint">Você será alertado quando o estoque chegar nesse valor</span>
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Descrição</label>
-              <input {...inp('description')} placeholder="Informações adicionais sobre o produto" />
-            </div>
+            <p className="form-hint" style={{ marginBottom: 12 }}>O estoque é movimentado em "Dar Entrada" ou por notas fiscais.</p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="button" className="btn btn-outline" onClick={() => { setShowForm(false); setEditing(null) }}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Salvando...' : (editing ? 'Salvar Alterações' : 'Cadastrar Produto')}</button>
@@ -177,9 +170,9 @@ export default function Products({ showToast }) {
               <thead>
                 <tr>
                   <th>Produto</th>
-                  <th>Código</th>
+                  <th>EAN</th>
                   <th>Categoria</th>
-                  <th>Preço</th>
+                  <th>Custo médio</th>
                   <th>Em Estoque</th>
                   <th>Situação</th>
                   <th>Ações</th>
@@ -190,20 +183,20 @@ export default function Products({ showToast }) {
                   <tr key={p.id}>
                     <td>
                       <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      {p.description && <div style={{ fontSize: 13, color: '#64748b' }}>{p.description}</div>}
                     </td>
-                    <td><span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>{p.sku}</span></td>
+                    <td><span style={{ fontFamily: 'monospace', background: '#f1f0ea', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>{p.ean || '—'}</span></td>
                     <td>{p.category || '—'}</td>
-                    <td>R$ {Number(p.unitPrice).toFixed(2).replace('.', ',')}</td>
+                    <td>{fmtMoney(p.averageCost)}</td>
                     <td>
-                      <span style={{ fontWeight: 700, fontSize: 18, color: p.quantityInStock === 0 ? '#dc2626' : p.belowMinimumStock ? '#d97706' : '#16a34a' }}>
-                        {p.quantityInStock}
+                      <span style={{ fontWeight: 700, fontSize: 18, color: Number(p.currentStock) <= 0 ? '#dc2626' : p.belowMinimum ? '#d97706' : '#16a34a' }}>
+                        {p.currentStock}
                       </span>
-                      {p.minimumStock && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 6 }}>mín: {p.minimumStock}</span>}
+                      {p.unit && <span style={{ fontSize: 12, color: '#9a9a92', marginLeft: 4 }}>{p.unit}</span>}
+                      {p.minimumStock != null && <span style={{ fontSize: 12, color: '#9a9a92', marginLeft: 6 }}>mín: {p.minimumStock}</span>}
                     </td>
                     <td>
-                      {p.quantityInStock === 0 ? <span className="badge badge-danger">Sem estoque</span>
-                        : p.belowMinimumStock ? <span className="badge badge-warning"><AlertTriangle size={12} /> Estoque baixo</span>
+                      {Number(p.currentStock) <= 0 ? <span className="badge badge-danger">Sem estoque</span>
+                        : p.belowMinimum ? <span className="badge badge-warning"><AlertTriangle size={12} /> Estoque baixo</span>
                           : <span className="badge badge-success">Normal</span>}
                     </td>
                     <td>

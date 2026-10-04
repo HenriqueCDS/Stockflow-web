@@ -8,6 +8,7 @@ export default function StockEntry({ showToast }) {
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
   const [quantity, setQuantity] = useState('')
+  const [unitCost, setUnitCost] = useState('')
   const [reason, setReason] = useState('')
   const [reference, setReference] = useState('')
   const [saving, setSaving] = useState(false)
@@ -15,18 +16,18 @@ export default function StockEntry({ showToast }) {
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    productApi.getAll().then(r => setProducts(r.data)).catch(() => {})
+    productApi.getAll({ active: true }).then(r => setProducts(r.data.content || [])).catch(() => {})
   }, [])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.sku.toLowerCase().includes(search.toLowerCase())
+    (p.ean || '').includes(search)
   )
 
   const validate = () => {
     const e = {}
     if (!selected) e.product = 'Selecione um produto'
-    if (!quantity || isNaN(quantity) || parseInt(quantity) < 1) e.quantity = 'Informe uma quantidade válida (mínimo 1)'
+    if (!quantity || isNaN(quantity) || Number(quantity) <= 0) e.quantity = 'Informe uma quantidade válida (maior que zero)'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -36,13 +37,20 @@ export default function StockEntry({ showToast }) {
     if (!validate()) return
     setSaving(true)
     try {
-      await stockApi.registerEntry({ productId: selected.id, quantity: parseInt(quantity), reason, reference, type: 'ENTRY' })
+      await stockApi.adjust({
+        productId: selected.id,
+        type: 'ENTRY',
+        quantity: Number(quantity),
+        unitCost: unitCost !== '' ? Number(unitCost) : null,
+        notes: [reason, reference && `Ref: ${reference}`].filter(Boolean).join(' | ') || null
+      })
       setSuccess(true)
-      setQuantity(''); setReason(''); setReference(''); setErrors({})
+      setQuantity(''); setUnitCost(''); setReason(''); setReference(''); setErrors({})
       showToast(`Entrada de ${quantity} unidade(s) registrada com sucesso!`)
       // Refresh selected product
       const r = await productApi.getById(selected.id)
       setSelected(r.data)
+      setProducts(ps => ps.map(x => x.id === r.data.id ? r.data : x))
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       showToast(err.message, 'error')
@@ -64,8 +72,8 @@ export default function StockEntry({ showToast }) {
         {/* Product selection */}
         <div className="card">
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>1. Escolha o Produto</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e2e8f0') }}>
-            <Search size={18} color="#94a3b8" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f6f5f0', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e6e4dc') }}>
+            <Search size={18} color="#9a9a92" />
             <input placeholder="Digite o nome ou código..." value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ border: 'none', background: 'none', outline: 'none', fontSize: 15, flex: 1 }} />
@@ -77,19 +85,19 @@ export default function StockEntry({ showToast }) {
               <div key={p.id} onClick={() => { setSelected(p); setErrors(e => ({ ...e, product: '' })) }}
                 style={{
                   padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-                  border: '2px solid ' + (selected?.id === p.id ? '#2563eb' : '#e2e8f0'),
-                  background: selected?.id === p.id ? '#eff6ff' : 'white',
+                  border: '2px solid ' + (selected?.id === p.id ? '#ff7a00' : '#e6e4dc'),
+                  background: selected?.id === p.id ? '#fff1e4' : 'white',
                   transition: 'all 0.15s'
                 }}>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#64748b' }}>
-                  <span>Cód: {p.sku}</span>
+                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#6b6b66' }}>
+                  <span>EAN: {p.ean || '—'}</span>
                   <span>•</span>
-                  <span>Em estoque: <strong style={{ color: '#1e293b' }}>{p.quantityInStock}</strong></span>
+                  <span>Em estoque: <strong style={{ color: '#1a1a1a' }}>{p.currentStock}</strong></span>
                 </div>
               </div>
             ))}
-            {filtered.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>Nenhum produto encontrado</div>}
+            {filtered.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#9a9a92' }}>Nenhum produto encontrado</div>}
           </div>
         </div>
 
@@ -98,14 +106,14 @@ export default function StockEntry({ showToast }) {
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>2. Informações da Entrada</h2>
 
           {selected ? (
-            <div style={{ background: '#eff6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid #bfdbfe' }}>
+            <div style={{ background: '#fff1e4', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid #bfdbfe' }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.name}</div>
-              <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
-                Estoque atual: <strong style={{ color: '#1e293b', fontSize: 18 }}>{selected.quantityInStock}</strong> unidades
+              <div style={{ color: '#6b6b66', fontSize: 14, marginTop: 4 }}>
+                Estoque atual: <strong style={{ color: '#1a1a1a', fontSize: 18 }}>{selected.currentStock}</strong> unidades
               </div>
             </div>
           ) : (
-            <div style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px', marginBottom: 20, color: '#94a3b8', fontSize: 14, textAlign: 'center' }}>
+            <div style={{ background: '#f6f5f0', borderRadius: 8, padding: '12px 14px', marginBottom: 20, color: '#9a9a92', fontSize: 14, textAlign: 'center' }}>
               ← Selecione um produto ao lado
             </div>
           )}
@@ -113,14 +121,21 @@ export default function StockEntry({ showToast }) {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label">Quantidade que chegou <span style={{ color: '#dc2626' }}>*</span></label>
-              <input className={`form-input${errors.quantity ? ' error' : ''}`} type="number" min="1"
+              <input className={`form-input${errors.quantity ? ' error' : ''}`} type="number" min="0" step="any"
                 placeholder="Ex: 50" value={quantity}
                 onChange={e => { setQuantity(e.target.value); setErrors(p => ({ ...p, quantity: '' })) }}
                 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center' }} />
               {errors.quantity && <span className="form-error">{errors.quantity}</span>}
               {selected && quantity && !errors.quantity && (
-                <span className="form-hint">Estoque ficará em: <strong>{selected.quantityInStock + parseInt(quantity || 0)}</strong> unidades</span>
+                <span className="form-hint">Estoque ficará em: <strong>{Number(selected.currentStock) + Number(quantity || 0)}</strong> unidades</span>
               )}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Custo unitário (R$)</label>
+              <input className="form-input" type="number" min="0" step="0.01" placeholder="Ex: 4,50" value={unitCost}
+                onChange={e => setUnitCost(e.target.value)} />
+              <span className="form-hint">Usado para calcular o custo médio do produto</span>
             </div>
 
             <div className="form-group">
