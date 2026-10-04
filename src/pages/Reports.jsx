@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, TrendingDown, TrendingUp, Package, RefreshCw, ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle, Activity, Scale } from 'lucide-react'
 import {
@@ -6,6 +7,11 @@ import {
 } from 'chart.js'
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
 import { dashboardApi, productApi, stockApi } from '../api/api'
+=======
+import React, { useEffect, useState } from 'react'
+import { BarChart3, AlertTriangle, TrendingDown, Package, RefreshCw, FileText, Trophy } from 'lucide-react'
+import { dashboardApi, productApi } from '../api/api'
+>>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
 import LoadingSpinner from '../components/LoadingSpinner'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Filler)
@@ -361,8 +367,13 @@ function Monthly({ movements }) {
 }
 
 export default function Reports({ showToast }) {
+<<<<<<< HEAD
   const [report, setReport] = useState(null)
   const [movements, setMovements] = useState([])
+=======
+  const [dashboard, setDashboard] = useState(null)
+  const [belowMinimum, setBelowMinimum] = useState([])
+>>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('overview')
 
@@ -383,6 +394,7 @@ export default function Reports({ showToast }) {
 
   const load = () => {
     setLoading(true)
+<<<<<<< HEAD
     Promise.all([dashboardApi.get(), productApi.getAll({ active: true }), loadMovements()])
       .then(([d, p, movs]) => {
         const products = p.data.content || []
@@ -392,6 +404,15 @@ export default function Reports({ showToast }) {
           lowStock: products.filter(x => x.belowMinimum && Number(x.currentStock) > 0),
           outOfStock: products.filter(x => Number(x.currentStock) <= 0)
         })
+=======
+    Promise.all([
+      dashboardApi.get(),
+      productApi.list({ belowMinimum: true, size: 200, sort: 'name' })
+    ])
+      .then(([dashboardData, productsData]) => {
+        setDashboard(dashboardData)
+        setBelowMinimum(productsData.content)
+>>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
       })
       .catch(() => showToast('Erro ao carregar relatório', 'error'))
       .finally(() => setLoading(false))
@@ -399,6 +420,14 @@ export default function Reports({ showToast }) {
 
   useEffect(() => { load() }, [])
 
+<<<<<<< HEAD
+=======
+  const formatCurrency = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  const outOfStock = belowMinimum.filter(p => p.currentStock <= 0)
+  const lowStock = belowMinimum.filter(p => p.currentStock > 0)
+
+>>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   return (
     <div>
       <div className="page-header">
@@ -411,10 +440,96 @@ export default function Reports({ showToast }) {
         </button>
       </div>
 
-      {loading ? <LoadingSpinner text="Gerando relatório..." /> : report && (
+      {loading ? <LoadingSpinner text="Gerando relatório..." /> : dashboard && (
         <>
+<<<<<<< HEAD
           <Tabs tab={tab} setTab={setTab} />
           {tab === 'overview' ? <Overview report={report} /> : <Monthly movements={movements} />}
+=======
+          <div className="stats-grid" style={{ marginBottom: 24 }}>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: '#dbeafe' }}><Package size={26} color="#2563eb" /></div>
+              <div className="stat-info"><h3 style={{ color: '#2563eb' }}>{dashboard.totalProducts}</h3><p>Total de produtos</p></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: '#dcfce7' }}><Package size={26} color="#16a34a" /></div>
+              <div className="stat-info"><h3 style={{ color: '#16a34a' }}>{dashboard.activeProducts}</h3><p>Produtos ativos</p></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: '#fef3c7' }}><AlertTriangle size={26} color="#d97706" /></div>
+              <div className="stat-info"><h3 style={{ color: '#d97706' }}>{dashboard.lowStockProducts}</h3><p>Estoque baixo</p></div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: '#ede9fe' }}><FileText size={26} color="#7c3aed" /></div>
+              <div className="stat-info"><h3 style={{ color: '#7c3aed' }}>{dashboard.pendingInvoices}</h3><p>Notas pendentes de {dashboard.totalInvoices}</p></div>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 20, padding: 28, textAlign: 'center', background: 'linear-gradient(135deg, #1e293b, #334155)', color: 'white', borderRadius: 16 }}>
+            <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>VALOR TOTAL DO ESTOQUE</div>
+            <div style={{ fontSize: 42, fontWeight: 800 }}>{formatCurrency(dashboard.totalStockValue)}</div>
+          </div>
+
+          {dashboard.topProducts?.length > 0 && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <Trophy size={20} color="#d97706" />
+                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Produtos com Maior Valor em Estoque</h2>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {dashboard.topProducts.map(p => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontWeight: 600 }}>{p.name}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{formatCurrency(p.totalValue)}</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{p.currentStock} em estoque</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lowStock.length > 0 && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <AlertTriangle size={20} color="#d97706" />
+                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Produtos com Estoque Baixo</h2>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {lowStock.map(p => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fef3c7', borderRadius: 8, border: '1px solid #fde68a' }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{p.name}</div>
+                      <div style={{ fontSize: 13, color: '#92400e' }}>Mínimo: {p.minimumStock} unidades</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#d97706' }}>{p.currentStock}</div>
+                      <div style={{ fontSize: 12, color: '#92400e' }}>disponíveis</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {outOfStock.length > 0 && (
+            <div className="card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <TrendingDown size={20} color="#dc2626" />
+                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Produtos Sem Estoque</h2>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {outOfStock.map(p => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fecaca' }}>
+                    <div style={{ fontWeight: 600 }}>{p.name}</div>
+                    <span className="badge badge-danger">Sem estoque</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+>>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
         </>
       )}
       <style>{`.spinning { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
