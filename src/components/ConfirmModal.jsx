@@ -18,7 +18,7 @@ export default function ConfirmModal({ title, message, onConfirm, onCancel, conf
           </div>
           <h3 style={{ fontSize: 18, fontWeight: 700 }}>{title}</h3>
         </div>
-        <p style={{ color: '#475569', marginBottom: 28, lineHeight: 1.6 }}>{message}</p>
+        <p style={{ color: '#4a4a46', marginBottom: 28, lineHeight: 1.6 }}>{message}</p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button className="btn btn-outline" onClick={onCancel}>Cancelar</button>
           <button className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>{confirmLabel}</button>
