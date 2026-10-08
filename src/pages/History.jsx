@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from 'react'
-import { History as HistoryIcon, ArrowUpCircle, ArrowDownCircle, RefreshCw, RotateCcw, Filter } from 'lucide-react'
-import { stockApi } from '../api/api'
+import { History as HistoryIcon, ArrowUpCircle, ArrowDownCircle, RefreshCw, RotateCcw, Check, XCircle, Filter } from 'lucide-react'
+import { stockApi, houseApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const typeConfig = {
   ENTRY: { label: 'Entrada', color: '#16a34a', bg: '#dcfce7', Icon: ArrowUpCircle },
+  USED: { label: 'Usei', color: '#2563eb', bg: '#dbeafe', Icon: Check },
+  DISCARDED: { label: 'Descartei', color: '#dc2626', bg: '#fee2e2', Icon: XCircle },
   EXIT: { label: 'Saída', color: '#dc2626', bg: '#fee2e2', Icon: ArrowDownCircle },
-<<<<<<< HEAD
   ADJUSTMENT: { label: 'Ajuste', color: '#ff7a00', bg: '#fbeadb', Icon: RefreshCw },
-  RETURN: { label: 'Devolução', color: '#0284c7', bg: '#e0f2fe', Icon: ArrowUpCircle }
-=======
-  ADJUSTMENT: { label: 'Ajuste', color: '#2563eb', bg: '#dbeafe', Icon: RefreshCw },
-  RETURN: { label: 'Devolução', color: '#7c3aed', bg: '#ede9fe', Icon: RotateCcw }
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
+  RETURN: { label: 'Devolução', color: '#0284c7', bg: '#e0f2fe', Icon: RotateCcw }
 }
 
 const PAGE_SIZE = 20
@@ -23,13 +20,8 @@ export default function History({ showToast }) {
   const [totalPages, setTotalPages] = useState(0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('ALL')
+  const [memberNames, setMemberNames] = useState({})
 
-<<<<<<< HEAD
-  const load = () => {
-    setLoading(true)
-    stockApi.getMovements()
-      .then(r => setMovements(r.data.content || []))
-=======
   const load = (targetPage = 0) => {
     setLoading(true)
     stockApi.list({ page: targetPage, size: PAGE_SIZE })
@@ -38,18 +30,16 @@ export default function History({ showToast }) {
         setPage(data.page)
         setTotalPages(data.totalPages)
       })
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
       .catch(() => showToast('Erro ao carregar histórico', 'error'))
       .finally(() => setLoading(false))
   }
 
-<<<<<<< HEAD
-  useEffect(() => { load() }, [])
-
-  const visible = filter === 'ALL' ? movements : movements.filter(m => m.type === filter)
-=======
-  useEffect(() => { load(0) }, [])
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
+  useEffect(() => {
+    load(0)
+    houseApi.members()
+      .then(members => setMemberNames(Object.fromEntries(members.map(m => [m.id, m.name]))))
+      .catch(() => {})
+  }, [])
 
   const formatDate = (d) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -67,25 +57,14 @@ export default function History({ showToast }) {
       {/* Filters */}
       <div className="card" style={{ marginBottom: 20, padding: '14px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-<<<<<<< HEAD
           <Filter size={16} color="#6b6b66" />
-          <span style={{ fontSize: 14, color: '#6b6b66', marginRight: 4 }}>Filtrar por:</span>
-          {['ALL', 'ENTRY', 'EXIT', 'ADJUSTMENT', 'RETURN'].map(t => (
+          <span style={{ fontSize: 14, color: '#6b6b66', marginRight: 4 }}>Filtrar por (nesta página):</span>
+          {['ALL', 'ENTRY', 'USED', 'DISCARDED', 'EXIT', 'ADJUSTMENT', 'RETURN'].map(t => (
             <button key={t} onClick={() => setFilter(t)}
               className="btn" style={{ padding: '7px 16px', fontSize: 14,
                 background: filter === t ? '#ff7a00' : '#f1f0ea',
                 color: filter === t ? 'white' : '#4a4a46', border: 'none' }}>
-              {t === 'ALL' ? 'Todos' : t === 'ENTRY' ? 'Entradas' : t === 'EXIT' ? 'Saídas' : t === 'ADJUSTMENT' ? 'Ajustes' : 'Devoluções'}
-=======
-          <Filter size={16} color="#64748b" />
-          <span style={{ fontSize: 14, color: '#64748b', marginRight: 4 }}>Filtrar por (nesta página):</span>
-          {['ALL', 'ENTRY', 'EXIT', 'ADJUSTMENT', 'RETURN'].map(t => (
-            <button key={t} onClick={() => setFilter(t)}
-              className="btn" style={{ padding: '7px 16px', fontSize: 14,
-                background: filter === t ? '#2563eb' : '#f1f5f9',
-                color: filter === t ? 'white' : '#475569', border: 'none' }}>
               {t === 'ALL' ? 'Todos' : typeConfig[t].label}
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
             </button>
           ))}
         </div>
@@ -107,11 +86,8 @@ export default function History({ showToast }) {
                   <th>Produto</th>
                   <th>Quantidade</th>
                   <th>Antes → Depois</th>
-<<<<<<< HEAD
+                  <th>Quem fez</th>
                   <th>Observações</th>
-=======
-                  <th>Observação</th>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
                 </tr>
               </thead>
               <tbody>
@@ -119,11 +95,7 @@ export default function History({ showToast }) {
                   const { label, color, bg, Icon } = typeConfig[m.type] || typeConfig.ENTRY
                   return (
                     <tr key={m.id}>
-<<<<<<< HEAD
                       <td style={{ fontSize: 14, color: '#6b6b66', whiteSpace: 'nowrap' }}>{formatDate(m.createdAt)}</td>
-=======
-                      <td style={{ fontSize: 14, color: '#64748b', whiteSpace: 'nowrap' }}>{formatDate(m.createdAt)}</td>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
                       <td>
                         <span className="badge" style={{ background: bg, color }}>
                           <Icon size={13} /> {label}
@@ -131,26 +103,16 @@ export default function History({ showToast }) {
                       </td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{m.productName}</div>
-<<<<<<< HEAD
                         {m.reference && <div style={{ fontSize: 12, color: '#9a9a92' }}>{m.reference}</div>}
                       </td>
-                      <td><span style={{ fontSize: 18, fontWeight: 700, color }}>{m.type === 'EXIT' ? '-' : '+'}{m.quantity}</span></td>
+                      <td><span style={{ fontSize: 18, fontWeight: 700, color }}>{['EXIT', 'USED', 'DISCARDED'].includes(m.type) ? '-' : '+'}{m.quantity}</span></td>
                       <td style={{ fontSize: 14 }}>
                         <span style={{ color: '#6b6b66' }}>{m.stockBefore}</span>
                         <span style={{ margin: '0 6px', color: '#9a9a92' }}>→</span>
                         <span style={{ fontWeight: 700, color: '#1a1a1a' }}>{m.stockAfter}</span>
                       </td>
+                      <td style={{ fontSize: 14 }}>{memberNames[m.createdBy] || '—'}</td>
                       <td style={{ fontSize: 14, color: '#6b6b66' }}>{m.notes || '—'}</td>
-=======
-                      </td>
-                      <td><span style={{ fontSize: 18, fontWeight: 700, color }}>{m.type === 'EXIT' ? '-' : '+'}{m.quantity}</span></td>
-                      <td style={{ fontSize: 14 }}>
-                        <span style={{ color: '#64748b' }}>{m.stockBefore}</span>
-                        <span style={{ margin: '0 6px', color: '#94a3b8' }}>→</span>
-                        <span style={{ fontWeight: 700, color: '#1e293b' }}>{m.stockAfter}</span>
-                      </td>
-                      <td style={{ fontSize: 14, color: '#64748b' }}>{m.notes || '—'}</td>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
                     </tr>
                   )
                 })}

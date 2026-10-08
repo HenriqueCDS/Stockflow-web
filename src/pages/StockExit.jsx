@@ -13,22 +13,14 @@ export default function StockExit({ showToast }) {
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-<<<<<<< HEAD
-    productApi.getAll({ active: true }).then(r => setProducts(r.data.content || [])).catch(() => {})
-=======
     productApi.list({ active: true, size: 500, sort: 'name' })
       .then(data => setProducts(data.content))
       .catch(() => {})
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   }, [])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-<<<<<<< HEAD
-    (p.ean || '').includes(search)
-=======
     (p.ean || '').toLowerCase().includes(search.toLowerCase())
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   )
 
   const qty = Number(quantity) || 0
@@ -37,11 +29,7 @@ export default function StockExit({ showToast }) {
   const validate = () => {
     const e = {}
     if (!selected) e.product = 'Selecione um produto'
-<<<<<<< HEAD
     if (!quantity || qty <= 0) e.quantity = 'Informe uma quantidade válida (maior que zero)'
-=======
-    if (!quantity || qty <= 0) e.quantity = 'Informe uma quantidade válida (mínimo 1)'
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
     if (selected && qty > selected.currentStock) e.quantity = `Quantidade maior que o estoque disponível (${selected.currentStock})`
     setErrors(e)
     return Object.keys(e).length === 0
@@ -52,30 +40,17 @@ export default function StockExit({ showToast }) {
     if (!validate()) return
     setSaving(true)
     try {
-<<<<<<< HEAD
-      await stockApi.adjust({
-        productId: selected.id,
-        type: 'EXIT',
-        quantity: qty,
-        notes: [reason, reference && `Ref: ${reference}`].filter(Boolean).join(' | ') || null
-=======
       const movement = await stockApi.adjust({
         productId: selected.id,
         type: 'EXIT',
         quantity: qty,
-        notes: notes || undefined
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
+        notes: notes.trim() || undefined
       })
       setSuccess(true)
       setSelected(p => ({ ...p, currentStock: movement.stockAfter }))
+      setProducts(ps => ps.map(x => x.id === selected.id ? { ...x, currentStock: movement.stockAfter } : x))
       setQuantity(''); setNotes(''); setErrors({})
       showToast(`Saída de ${qty} unidade(s) registrada com sucesso!`)
-<<<<<<< HEAD
-      const r = await productApi.getById(selected.id)
-      setSelected(r.data)
-      setProducts(ps => ps.map(x => x.id === r.data.id ? r.data : x))
-=======
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       showToast(err.message, 'error')
@@ -97,15 +72,9 @@ export default function StockExit({ showToast }) {
         {/* Product selection */}
         <div className="card">
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>1. Escolha o Produto</h2>
-<<<<<<< HEAD
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f6f5f0', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e6e4dc') }}>
             <Search size={18} color="#9a9a92" />
-            <input placeholder="Digite o nome ou código..." value={search}
-=======
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e2e8f0') }}>
-            <Search size={18} color="#94a3b8" />
             <input placeholder="Digite o nome ou EAN..." value={search}
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
               onChange={e => setSearch(e.target.value)}
               style={{ border: 'none', background: 'none', outline: 'none', fontSize: 15, flex: 1 }} />
           </div>
@@ -116,34 +85,21 @@ export default function StockExit({ showToast }) {
               <div key={p.id} onClick={() => { setSelected(p); setErrors({}) }}
                 style={{
                   padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-<<<<<<< HEAD
                   border: '2px solid ' + (selected?.id === p.id ? '#ff7a00' : '#e6e4dc'),
                   background: selected?.id === p.id ? '#fff1e4' : 'white',
-                  opacity: p.currentStock === 0 ? 0.5 : 1,
-                  transition: 'all 0.15s'
-                }}>
-                <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#6b6b66' }}>
-                  <span>EAN: {p.ean || '—'}</span>
-                  <span>•</span>
-                  <span style={{ color: p.currentStock === 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
-                    {p.currentStock === 0 ? 'Sem estoque' : `${p.currentStock} disponíveis`}
-=======
-                  border: '2px solid ' + (selected?.id === p.id ? '#2563eb' : '#e2e8f0'),
-                  background: selected?.id === p.id ? '#eff6ff' : 'white',
                   opacity: p.currentStock <= 0 ? 0.5 : 1,
                   transition: 'all 0.15s'
                 }}>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#64748b' }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#6b6b66' }}>
                   {p.ean && <><span>EAN: {p.ean}</span><span>•</span></>}
                   <span style={{ color: p.currentStock <= 0 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
                     {p.currentStock <= 0 ? 'Sem estoque' : `${p.currentStock} disponíveis`}
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
                   </span>
                 </div>
               </div>
             ))}
+            {filtered.length === 0 && <div style={{ textAlign: 'center', padding: 24, color: '#9a9a92' }}>Nenhum produto encontrado</div>}
           </div>
         </div>
 
@@ -152,21 +108,12 @@ export default function StockExit({ showToast }) {
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>2. Informações da Saída</h2>
 
           {selected ? (
-<<<<<<< HEAD
-            <div style={{ background: selected.currentStock === 0 ? '#fee2e2' : '#fff1e4', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid ' + (selected.currentStock === 0 ? '#fca5a5' : '#bfdbfe') }}>
+            <div style={{ background: selected.currentStock <= 0 ? '#fee2e2' : '#fff1e4', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid ' + (selected.currentStock <= 0 ? '#fca5a5' : '#bfdbfe') }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.name}</div>
               <div style={{ color: '#6b6b66', fontSize: 14, marginTop: 4 }}>
-                Disponível: <strong style={{ fontSize: 18, color: selected.currentStock === 0 ? '#dc2626' : '#16a34a' }}>{selected.currentStock}</strong> unidades
-              </div>
-              {selected.currentStock === 0 && (
-=======
-            <div style={{ background: selected.currentStock <= 0 ? '#fee2e2' : '#eff6ff', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid ' + (selected.currentStock <= 0 ? '#fca5a5' : '#bfdbfe') }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.name}</div>
-              <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
                 Disponível: <strong style={{ fontSize: 18, color: selected.currentStock <= 0 ? '#dc2626' : '#16a34a' }}>{selected.currentStock}</strong> unidades
               </div>
               {selected.currentStock <= 0 && (
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
                 <div style={{ marginTop: 8, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>⚠ Este produto não tem estoque disponível</div>
               )}
             </div>
@@ -179,11 +126,7 @@ export default function StockExit({ showToast }) {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label">Quantidade que saiu <span style={{ color: '#dc2626' }}>*</span></label>
-<<<<<<< HEAD
-              <input className={`form-input${errors.quantity ? ' error' : ''}`} type="number" min="0" step="any"
-=======
               <input className={`form-input${errors.quantity ? ' error' : ''}`} type="number" min="1"
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
                 max={selected?.currentStock}
                 placeholder="Ex: 10" value={quantity}
                 onChange={e => { setQuantity(e.target.value); setErrors(p => ({ ...p, quantity: '' })) }}
@@ -213,11 +156,7 @@ export default function StockExit({ showToast }) {
               </div>
             )}
 
-<<<<<<< HEAD
-            <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', background: '#dc2626' }} disabled={saving || !selected || selected.currentStock === 0}>
-=======
             <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', background: '#dc2626' }} disabled={saving || !selected || selected.currentStock <= 0}>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
               <PackageMinus size={20} />
               {saving ? 'Registrando...' : 'Confirmar Saída do Estoque'}
             </button>

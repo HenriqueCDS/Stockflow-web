@@ -1,17 +1,11 @@
-<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, TrendingDown, TrendingUp, Package, RefreshCw, ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle, Activity, Scale } from 'lucide-react'
+import { AlertTriangle, TrendingDown, Package, RefreshCw, ChevronLeft, ChevronRight, ArrowUpCircle, ArrowDownCircle, Activity, Scale } from 'lucide-react'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement,
   ArcElement, Tooltip, Legend, Filler
 } from 'chart.js'
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
 import { dashboardApi, productApi, stockApi } from '../api/api'
-=======
-import React, { useEffect, useState } from 'react'
-import { BarChart3, AlertTriangle, TrendingDown, Package, RefreshCw, FileText, Trophy } from 'lucide-react'
-import { dashboardApi, productApi } from '../api/api'
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
 import LoadingSpinner from '../components/LoadingSpinner'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Filler)
@@ -28,8 +22,11 @@ const TYPES = {
   ENTRY: { label: 'Entradas', color: COLORS.success },
   RETURN: { label: 'Devoluções', color: COLORS.info },
   ADJUSTMENT: { label: 'Ajustes', color: COLORS.primary },
+  USED: { label: 'Usei', color: '#2563eb' },
+  DISCARDED: { label: 'Descartei', color: '#991b1b' },
   EXIT: { label: 'Saídas', color: COLORS.danger }
 }
+const CONSUMPTION_TYPES = ['EXIT', 'USED', 'DISCARDED']
 
 const fmtCurrency = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtNumber = (v) => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
@@ -89,7 +86,6 @@ function Tabs({ tab, setTab }) {
 
 function Overview({ report }) {
   const healthy = Math.max(report.activeProducts - report.lowStock.length - report.outOfStock.length, 0)
-  const top = (report.topProducts || []).slice(0, 8)
 
   return (
     <>
@@ -101,8 +97,8 @@ function Overview({ report }) {
       </div>
 
       <div className="card" style={{ marginBottom: 20, padding: 28, textAlign: 'center', background: 'linear-gradient(135deg, #1a1a1a, #2a2a2a)', color: 'white', borderRadius: 16 }}>
-        <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>VALOR TOTAL DO ESTOQUE</div>
-        <div style={{ fontSize: 42, fontWeight: 800 }}>{fmtCurrency(report.totalStockValue)}</div>
+        <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>GASTO DO MÊS</div>
+        <div style={{ fontSize: 42, fontWeight: 800 }}>{fmtCurrency(report.monthlySpend)}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 20 }}>
@@ -114,21 +110,6 @@ function Overview({ report }) {
             }}
             options={{ responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: baseOptions.plugins }}
           />
-        </ChartCard>
-        <ChartCard title="Maiores valores em estoque" subtitle="Capital imobilizado por produto">
-          {top.length === 0 ? <p className="metric-note">Nenhum produto com estoque.</p> : (
-            <Bar
-              data={{
-                labels: top.map(p => p.name.length > 22 ? p.name.slice(0, 21) + '…' : p.name),
-                datasets: [{ label: 'Valor em estoque', data: top.map(p => Number(p.totalValue)), backgroundColor: COLORS.primary, borderRadius: 6 }]
-              }}
-              options={{
-                ...baseOptions, indexAxis: 'y',
-                plugins: { ...baseOptions.plugins, legend: { display: false }, tooltip: { ...baseOptions.plugins.tooltip, callbacks: { label: c => fmtCurrency(c.raw) } } },
-                scales: { x: { beginAtZero: true, grid: { color: COLORS.grid }, border: { display: false }, ticks: { callback: v => fmtCurrency(v) } }, y: { grid: { display: false } } }
-              }}
-            />
-          )}
         </ChartCard>
       </div>
 
@@ -194,7 +175,7 @@ function Monthly({ movements }) {
       const r = rows[new Date(m.createdAt).getMonth()]
       const q = Number(m.quantity) || 0
       r.count++
-      if (m.type === 'EXIT') r.exits += q
+      if (CONSUMPTION_TYPES.includes(m.type)) r.exits += q
       else if (m.type === 'ENTRY' || m.type === 'RETURN') r.entries += q
     })
     return rows
@@ -208,12 +189,12 @@ function Monthly({ movements }) {
 
   const totals = useMemo(() => {
     const t = { entries: 0, exits: 0, count: scoped.length }
-    const byType = { ENTRY: 0, RETURN: 0, ADJUSTMENT: 0, EXIT: 0 }
+    const byType = { ENTRY: 0, RETURN: 0, ADJUSTMENT: 0, USED: 0, DISCARDED: 0, EXIT: 0 }
     const exitsByProduct = {}
     scoped.forEach(m => {
       const q = Number(m.quantity) || 0
       if (m.type in byType) byType[m.type] += q
-      if (m.type === 'EXIT') {
+      if (CONSUMPTION_TYPES.includes(m.type)) {
         t.exits += q
         exitsByProduct[m.productName] = (exitsByProduct[m.productName] || 0) + q
       } else if (m.type === 'ENTRY' || m.type === 'RETURN') t.entries += q
@@ -367,24 +348,20 @@ function Monthly({ movements }) {
 }
 
 export default function Reports({ showToast }) {
-<<<<<<< HEAD
   const [report, setReport] = useState(null)
   const [movements, setMovements] = useState([])
-=======
-  const [dashboard, setDashboard] = useState(null)
-  const [belowMinimum, setBelowMinimum] = useState([])
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('overview')
 
   // Busca todas as páginas de movimentações (limite de 20 páginas); falha aqui não derruba o relatório
   const loadMovements = async () => {
     try {
-      const first = (await stockApi.getMovements()).data
+      const first = await stockApi.list()
       const all = [...(first.content || [])]
       const pages = Math.min(first.totalPages || 1, 20)
       for (let page = 1; page < pages; page++) {
-        all.push(...((await stockApi.getMovements({ page })).data.content || []))
+        const next = await stockApi.list({ page })
+        all.push(...(next.content || []))
       }
       return all
     } catch {
@@ -394,25 +371,15 @@ export default function Reports({ showToast }) {
 
   const load = () => {
     setLoading(true)
-<<<<<<< HEAD
-    Promise.all([dashboardApi.get(), productApi.getAll({ active: true }), loadMovements()])
-      .then(([d, p, movs]) => {
-        const products = p.data.content || []
+    Promise.all([dashboardApi.get(), productApi.list({ active: true, size: 200, sort: 'name' }), loadMovements()])
+      .then(([dashboardData, productsData, movs]) => {
+        const products = productsData.content || []
         setMovements(movs)
         setReport({
-          ...d.data,
+          ...dashboardData,
           lowStock: products.filter(x => x.belowMinimum && Number(x.currentStock) > 0),
           outOfStock: products.filter(x => Number(x.currentStock) <= 0)
         })
-=======
-    Promise.all([
-      dashboardApi.get(),
-      productApi.list({ belowMinimum: true, size: 200, sort: 'name' })
-    ])
-      .then(([dashboardData, productsData]) => {
-        setDashboard(dashboardData)
-        setBelowMinimum(productsData.content)
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
       })
       .catch(() => showToast('Erro ao carregar relatório', 'error'))
       .finally(() => setLoading(false))
@@ -420,14 +387,6 @@ export default function Reports({ showToast }) {
 
   useEffect(() => { load() }, [])
 
-<<<<<<< HEAD
-=======
-  const formatCurrency = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-
-  const outOfStock = belowMinimum.filter(p => p.currentStock <= 0)
-  const lowStock = belowMinimum.filter(p => p.currentStock > 0)
-
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   return (
     <div>
       <div className="page-header">
@@ -440,96 +399,10 @@ export default function Reports({ showToast }) {
         </button>
       </div>
 
-      {loading ? <LoadingSpinner text="Gerando relatório..." /> : dashboard && (
+      {loading ? <LoadingSpinner text="Gerando relatório..." /> : report && (
         <>
-<<<<<<< HEAD
           <Tabs tab={tab} setTab={setTab} />
           {tab === 'overview' ? <Overview report={report} /> : <Monthly movements={movements} />}
-=======
-          <div className="stats-grid" style={{ marginBottom: 24 }}>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: '#dbeafe' }}><Package size={26} color="#2563eb" /></div>
-              <div className="stat-info"><h3 style={{ color: '#2563eb' }}>{dashboard.totalProducts}</h3><p>Total de produtos</p></div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: '#dcfce7' }}><Package size={26} color="#16a34a" /></div>
-              <div className="stat-info"><h3 style={{ color: '#16a34a' }}>{dashboard.activeProducts}</h3><p>Produtos ativos</p></div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: '#fef3c7' }}><AlertTriangle size={26} color="#d97706" /></div>
-              <div className="stat-info"><h3 style={{ color: '#d97706' }}>{dashboard.lowStockProducts}</h3><p>Estoque baixo</p></div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ background: '#ede9fe' }}><FileText size={26} color="#7c3aed" /></div>
-              <div className="stat-info"><h3 style={{ color: '#7c3aed' }}>{dashboard.pendingInvoices}</h3><p>Notas pendentes de {dashboard.totalInvoices}</p></div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 20, padding: 28, textAlign: 'center', background: 'linear-gradient(135deg, #1e293b, #334155)', color: 'white', borderRadius: 16 }}>
-            <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>VALOR TOTAL DO ESTOQUE</div>
-            <div style={{ fontSize: 42, fontWeight: 800 }}>{formatCurrency(dashboard.totalStockValue)}</div>
-          </div>
-
-          {dashboard.topProducts?.length > 0 && (
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <Trophy size={20} color="#d97706" />
-                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Produtos com Maior Valor em Estoque</h2>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {dashboard.topProducts.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontWeight: 600 }}>{p.name}</div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{formatCurrency(p.totalValue)}</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{p.currentStock} em estoque</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {lowStock.length > 0 && (
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <AlertTriangle size={20} color="#d97706" />
-                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Produtos com Estoque Baixo</h2>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {lowStock.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fef3c7', borderRadius: 8, border: '1px solid #fde68a' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ fontSize: 13, color: '#92400e' }}>Mínimo: {p.minimumStock} unidades</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: '#d97706' }}>{p.currentStock}</div>
-                      <div style={{ fontSize: 12, color: '#92400e' }}>disponíveis</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {outOfStock.length > 0 && (
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <TrendingDown size={20} color="#dc2626" />
-                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Produtos Sem Estoque</h2>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {outOfStock.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fecaca' }}>
-                    <div style={{ fontWeight: 600 }}>{p.name}</div>
-                    <span className="badge badge-danger">Sem estoque</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
         </>
       )}
       <style>{`.spinning { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>

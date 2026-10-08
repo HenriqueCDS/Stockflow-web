@@ -1,8 +1,6 @@
 import axios from 'axios'
 
-<<<<<<< HEAD
 const BASE_URL = '/api/v1'
-=======
 const SESSION_KEY = 'stockflow_session'
 const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh']
 
@@ -24,9 +22,8 @@ export function clearSession() {
 
 export function getStoredUser() {
   const s = getSession()
-  return s ? { userId: s.userId, email: s.email, name: s.name, role: s.role } : null
+  return s ? { id: s.userId, email: s.email, name: s.name, role: s.role } : null
 }
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -34,54 +31,9 @@ const api = axios.create({
   timeout: 10000
 })
 
-<<<<<<< HEAD
-export const TOKEN_KEY = 'homestock.token'
-export const REFRESH_KEY = 'homestock.refreshToken'
-export const USER_KEY = 'homestock.user'
-
-// Normaliza LoginResponseDTO em { token, refreshToken, user }
-const toSession = (body, fallbackEmail) => {
-  const token = body?.accessToken
-  if (!token) throw new Error('Resposta de login sem token de acesso.')
-  return {
-    token,
-    refreshToken: body.refreshToken || null,
-    user: { id: body.userId, email: body.email || fallbackEmail, name: body.name, role: body.role }
-  }
-}
-
-api.interceptors.request.use(config => {
-  const token = sessionStorage.getItem(TOKEN_KEY)
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
-
-// Renova o access token usando o refresh token (uma única chamada por vez)
-let refreshing = null
-const refreshSession = () => {
-  const refreshToken = sessionStorage.getItem(REFRESH_KEY)
-  if (!refreshToken) return Promise.reject(new Error('Sem refresh token'))
-  if (!refreshing) {
-    refreshing = axios.post(`${BASE_URL}/auth/refresh`, { refreshToken })
-      .then(res => {
-        const session = toSession(res.data?.data)
-        sessionStorage.setItem(TOKEN_KEY, session.token)
-        if (session.refreshToken) sessionStorage.setItem(REFRESH_KEY, session.refreshToken)
-        return session.token
-      })
-      .finally(() => { refreshing = null })
-  }
-  return refreshing
-}
-
-const errorMessage = (err) => {
-  const data = err.response?.data
-  const details = data?.errors && typeof data.errors === 'object' ? Object.values(data.errors).join('; ') : ''
-  return details || data?.message || 'Erro ao conectar com o servidor. Verifique sua conexão.'
-=======
-// Separate client for token refresh so it never triggers the response interceptor's refresh logic
+// Cliente separado para o refresh, para nunca disparar o próprio interceptor de refresh
 const refreshClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000
 })
@@ -94,40 +46,23 @@ api.interceptors.request.use(config => {
   return config
 })
 
-let isRefreshing = false
-let refreshQueue = []
-
 function forceLogout() {
   clearSession()
   window.dispatchEvent(new Event('auth:logout'))
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
 }
+
+const errorMessage = (err) => {
+  const data = err.response?.data
+  const details = data?.errors && typeof data.errors === 'object' ? Object.values(data.errors).join('; ') : ''
+  return details || data?.message || 'Erro ao conectar com o servidor. Verifique sua conexão.'
+}
+
+let isRefreshing = false
+let refreshQueue = []
 
 api.interceptors.response.use(
   res => {
-<<<<<<< HEAD
     // Desembrulha o envelope ApiResponseDTO { success, message, data, errors, timestamp }
-    const body = res.data
-    if (body && typeof body === 'object' && 'success' in body && 'data' in body) res.data = body.data
-    return res
-  },
-  async err => {
-    const config = err.config
-    const isAuthCall = config?.url?.startsWith('/auth/')
-    if (err.response?.status === 401 && !isAuthCall) {
-      if (!config._retried) {
-        config._retried = true
-        try {
-          const token = await refreshSession()
-          config.headers.Authorization = `Bearer ${token}`
-          return api(config)
-        } catch { /* cai para encerrar a sessão */ }
-      }
-      // Sessão inválida: o AuthContext escuta este evento e encerra a sessão
-      window.dispatchEvent(new Event('auth:unauthorized'))
-    }
-    return Promise.reject(new Error(errorMessage(err)))
-=======
     if (res.data && typeof res.data === 'object' && 'success' in res.data) {
       res.data = res.data.data
     }
@@ -172,91 +107,78 @@ api.interceptors.response.use(
       }
     }
 
-    const msg = error.response?.data?.message || 'Erro ao conectar com o servidor. Verifique sua conexão.'
-    return Promise.reject(new Error(msg))
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
+    return Promise.reject(new Error(errorMessage(error)))
   }
 )
 
 // Autenticação
 export const authApi = {
-<<<<<<< HEAD
-  login: async (email, password) => {
-    const res = await api.post('/auth/login', { email, password })
-    return toSession(res.data, email)
-  },
-  register: async (data) => {
-    const res = await api.post('/auth/register', data)
-    return toSession(res.data, data.email)
-  }
-}
-
-// Produtos (listagem paginada: { content, page, size, totalElements, totalPages, first, last })
-export const productApi = {
-  getAll: (params = {}) => api.get('/products', { params: { size: 200, ...params } }),
-  getById: (id) => api.get(`/products/${id}`),
-  create: (data) => api.post('/products', data),
-  update: (id, data) => api.put(`/products/${id}`, data),
-=======
-  login: (data) => api.post('/auth/login', data).then(r => r.data),
+  login: (email, password) => api.post('/auth/login', { email, password }).then(r => r.data),
   register: (data) => api.post('/auth/register', data).then(r => r.data),
+  join: (data) => api.post('/auth/join', data).then(r => r.data),
   logout: () => api.post('/auth/logout').then(r => r.data)
 }
 
-// Empresa
-export const companyApi = {
-  get: () => api.get('/company').then(r => r.data),
-  update: (data) => api.put('/company', data).then(r => r.data)
+// Perfil do usuário autenticado
+export const userApi = {
+  getProfile: () => api.get('/users/me').then(r => r.data),
+  updateProfile: (data) => api.put('/users/me', data).then(r => r.data)
 }
 
-// Produtos
+// Casa (rota /company no backend, sem CNPJ) + membros e código de convite
+export const houseApi = {
+  get: () => api.get('/company').then(r => r.data),
+  update: (data) => api.put('/company', data).then(r => r.data),
+  members: () => api.get('/company/members').then(r => r.data),
+  removeMember: (userId) => api.delete(`/company/members/${userId}`).then(r => r.data),
+  rotateInviteCode: () => api.post('/company/invite-code/rotate').then(r => r.data)
+}
+
+// Produtos (listagem paginada: { content, page, size, totalElements, totalPages, first, last })
 export const productApi = {
   list: (params) => api.get('/products', { params }).then(r => r.data),
   getById: (id) => api.get(`/products/${id}`).then(r => r.data),
   create: (data) => api.post('/products', data).then(r => r.data),
   update: (id, data) => api.put(`/products/${id}`, data).then(r => r.data),
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
-  deactivate: (id) => api.delete(`/products/${id}`)
+  deactivate: (id) => api.delete(`/products/${id}`).then(r => r.data),
+  use: (id, quantity = 1) => api.post(`/products/${id}/use`, null, { params: { quantity } }).then(r => r.data),
+  discard: (id, quantity = 1) => api.post(`/products/${id}/discard`, null, { params: { quantity } }).then(r => r.data)
 }
 
-// Movimentações de estoque
+// Movimentações de estoque (type: ENTRY | USED | DISCARDED | EXIT | ADJUSTMENT | RETURN)
 export const stockApi = {
-<<<<<<< HEAD
-  // type: ENTRY | EXIT | ADJUSTMENT | RETURN
-  adjust: (data) => api.post('/stock-movements/adjust', data),
-  getMovements: (params = {}) => api.get('/stock-movements', { params: { size: 200, ...params } }),
-  getMovementsByProduct: (productId, params = {}) => api.get(`/stock-movements/product/${productId}`, { params })
-}
-
-// Notas fiscais (NFC-e)
-export const invoiceApi = {
-  getAll: (params = {}) => api.get('/invoices', { params: { size: 50, ...params } }),
-  getById: (id) => api.get(`/invoices/${id}`),
-  remove: (id) => api.delete(`/invoices/${id}`),
-  processQrCode: (qrCode) => api.post('/nfce/process', null, { params: { qrCode } }),
-  confirm: (id) => api.post(`/nfce/${id}/confirm`),
-  reject: (id) => api.post(`/nfce/${id}/reject`)
-}
-
-// Empresa
-export const companyApi = {
-  get: () => api.get('/company'),
-  update: (data) => api.put('/company', data)
-}
-
-// Dashboard
-export const dashboardApi = {
-  get: () => api.get('/dashboard')
-=======
   adjust: (data) => api.post('/stock-movements/adjust', data).then(r => r.data),
   list: (params) => api.get('/stock-movements', { params }).then(r => r.data),
   listByProduct: (productId, params) => api.get(`/stock-movements/product/${productId}`, { params }).then(r => r.data)
 }
 
+// Notas fiscais (NFC-e)
+export const invoiceApi = {
+  list: (params) => api.get('/invoices', { params }).then(r => r.data),
+  getById: (id) => api.get(`/invoices/${id}`).then(r => r.data),
+  remove: (id) => api.delete(`/invoices/${id}`).then(r => r.data),
+  processQrCode: (qrCode) => api.post('/nfce/process', { qrCode }).then(r => r.data),
+  processImage: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/nfce/process/image', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
+  confirm: (id) => api.post(`/nfce/${id}/confirm`).then(r => r.data),
+  reject: (id) => api.post(`/nfce/${id}/reject`).then(r => r.data),
+  reviewItem: (invoiceId, itemId, data) => api.patch(`/nfce/${invoiceId}/items/${itemId}`, data).then(r => r.data)
+}
+
 // Dashboard
 export const dashboardApi = {
   get: () => api.get('/dashboard').then(r => r.data)
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
+}
+
+// Lista de compras compartilhada
+export const shoppingListApi = {
+  list: () => api.get('/shopping-list').then(r => r.data),
+  create: (data) => api.post('/shopping-list', data).then(r => r.data),
+  check: (id) => api.post(`/shopping-list/${id}/check`).then(r => r.data),
+  remove: (id) => api.delete(`/shopping-list/${id}`).then(r => r.data)
 }
 
 export default api

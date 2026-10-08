@@ -7,45 +7,26 @@ export default function StockEntry({ showToast }) {
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
   const [quantity, setQuantity] = useState('')
-  const [unitCost, setUnitCost] = useState('')
-<<<<<<< HEAD
-  const [reason, setReason] = useState('')
-  const [reference, setReference] = useState('')
-=======
   const [notes, setNotes] = useState('')
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-<<<<<<< HEAD
-    productApi.getAll({ active: true }).then(r => setProducts(r.data.content || [])).catch(() => {})
-=======
     productApi.list({ active: true, size: 500, sort: 'name' })
       .then(data => setProducts(data.content))
       .catch(() => {})
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   }, [])
 
   const filtered = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-<<<<<<< HEAD
-    (p.ean || '').includes(search)
-=======
     (p.ean || '').toLowerCase().includes(search.toLowerCase())
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
   )
 
   const validate = () => {
     const e = {}
     if (!selected) e.product = 'Selecione um produto'
-<<<<<<< HEAD
     if (!quantity || isNaN(quantity) || Number(quantity) <= 0) e.quantity = 'Informe uma quantidade válida (maior que zero)'
-=======
-    if (!quantity || isNaN(quantity) || Number(quantity) <= 0) e.quantity = 'Informe uma quantidade válida (mínimo 1)'
-    if (unitCost && (isNaN(unitCost) || Number(unitCost) < 0)) e.unitCost = 'Informe um custo válido'
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -55,34 +36,17 @@ export default function StockEntry({ showToast }) {
     if (!validate()) return
     setSaving(true)
     try {
-<<<<<<< HEAD
-      await stockApi.adjust({
-        productId: selected.id,
-        type: 'ENTRY',
-        quantity: Number(quantity),
-        unitCost: unitCost !== '' ? Number(unitCost) : null,
-        notes: [reason, reference && `Ref: ${reference}`].filter(Boolean).join(' | ') || null
-      })
-      setSuccess(true)
-      setQuantity(''); setUnitCost(''); setReason(''); setReference(''); setErrors({})
-      showToast(`Entrada de ${quantity} unidade(s) registrada com sucesso!`)
-      // Refresh selected product
-      const r = await productApi.getById(selected.id)
-      setSelected(r.data)
-      setProducts(ps => ps.map(x => x.id === r.data.id ? r.data : x))
-=======
       const movement = await stockApi.adjust({
         productId: selected.id,
         type: 'ENTRY',
         quantity: Number(quantity),
-        unitCost: unitCost ? Number(unitCost) : undefined,
-        notes: notes || undefined
+        notes: notes.trim() || undefined
       })
       setSuccess(true)
       setSelected(p => ({ ...p, currentStock: movement.stockAfter }))
-      setQuantity(''); setUnitCost(''); setNotes(''); setErrors({})
+      setProducts(ps => ps.map(x => x.id === selected.id ? { ...x, currentStock: movement.stockAfter } : x))
+      setQuantity(''); setNotes(''); setErrors({})
       showToast(`Entrada de ${quantity} unidade(s) registrada com sucesso!`)
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       showToast(err.message, 'error')
@@ -104,15 +68,9 @@ export default function StockEntry({ showToast }) {
         {/* Product selection */}
         <div className="card">
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>1. Escolha o Produto</h2>
-<<<<<<< HEAD
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f6f5f0', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e6e4dc') }}>
             <Search size={18} color="#9a9a92" />
-            <input placeholder="Digite o nome ou código..." value={search}
-=======
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '2px solid ' + (errors.product ? '#dc2626' : '#e2e8f0') }}>
-            <Search size={18} color="#94a3b8" />
             <input placeholder="Digite o nome ou EAN..." value={search}
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
               onChange={e => setSearch(e.target.value)}
               style={{ border: 'none', background: 'none', outline: 'none', fontSize: 15, flex: 1 }} />
           </div>
@@ -128,16 +86,9 @@ export default function StockEntry({ showToast }) {
                   transition: 'all 0.15s'
                 }}>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
-<<<<<<< HEAD
                 <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#6b6b66' }}>
-                  <span>EAN: {p.ean || '—'}</span>
-                  <span>•</span>
-                  <span>Em estoque: <strong style={{ color: '#1a1a1a' }}>{p.currentStock}</strong></span>
-=======
-                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 13, color: '#64748b' }}>
                   {p.ean && <><span>EAN: {p.ean}</span><span>•</span></>}
-                  <span>Em estoque: <strong style={{ color: '#1e293b' }}>{p.currentStock}</strong></span>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
+                  <span>Em estoque: <strong style={{ color: '#1a1a1a' }}>{p.currentStock}</strong></span>
                 </div>
               </div>
             ))}
@@ -152,13 +103,8 @@ export default function StockEntry({ showToast }) {
           {selected ? (
             <div style={{ background: '#fff1e4', borderRadius: 8, padding: '12px 14px', marginBottom: 20, border: '1px solid #bfdbfe' }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.name}</div>
-<<<<<<< HEAD
               <div style={{ color: '#6b6b66', fontSize: 14, marginTop: 4 }}>
                 Estoque atual: <strong style={{ color: '#1a1a1a', fontSize: 18 }}>{selected.currentStock}</strong> unidades
-=======
-              <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
-                Estoque atual: <strong style={{ color: '#1e293b', fontSize: 18 }}>{selected.currentStock}</strong> unidades
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
               </div>
             </div>
           ) : (
@@ -176,33 +122,8 @@ export default function StockEntry({ showToast }) {
                 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center' }} />
               {errors.quantity && <span className="form-error">{errors.quantity}</span>}
               {selected && quantity && !errors.quantity && (
-<<<<<<< HEAD
                 <span className="form-hint">Estoque ficará em: <strong>{Number(selected.currentStock) + Number(quantity || 0)}</strong> unidades</span>
-=======
-                <span className="form-hint">Estoque ficará em: <strong>{selected.currentStock + Number(quantity || 0)}</strong> unidades</span>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
               )}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Custo unitário (R$)</label>
-<<<<<<< HEAD
-              <input className="form-input" type="number" min="0" step="0.01" placeholder="Ex: 4,50" value={unitCost}
-                onChange={e => setUnitCost(e.target.value)} />
-              <span className="form-hint">Usado para calcular o custo médio do produto</span>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Motivo / Observação</label>
-              <input className="form-input" placeholder="Ex: Compra de reposição, doação..." value={reason}
-                onChange={e => setReason(e.target.value)} />
-=======
-              <input className={`form-input${errors.unitCost ? ' error' : ''}`} type="number" step="0.01" min="0"
-                placeholder="0,00" value={unitCost}
-                onChange={e => { setUnitCost(e.target.value); setErrors(p => ({ ...p, unitCost: '' })) }} />
-              {errors.unitCost && <span className="form-error">{errors.unitCost}</span>}
-              <span className="form-hint">Usado para calcular o custo médio do produto</span>
->>>>>>> 2c98cba2889e84364226a998f47309fdf06a5c8a
             </div>
 
             <div className="form-group">
