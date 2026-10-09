@@ -178,6 +178,8 @@ export const shoppingListApi = {
   list: () => api.get('/shopping-list').then(r => r.data),
   create: (data) => api.post('/shopping-list', data).then(r => r.data),
   check: (id) => api.post(`/shopping-list/${id}/check`).then(r => r.data),
+  // Depende do backend expor o endpoint de desfazer
+  uncheck: (id) => api.post(`/shopping-list/${id}/uncheck`).then(r => r.data),
   remove: (id) => api.delete(`/shopping-list/${id}`).then(r => r.data)
 }
 

@@ -32,8 +32,8 @@ function AppRoutes() {
   const { isAuthenticated } = useAuth()
   const [toast, setToast] = useState(null)
 
-  const showToast = useCallback((message, type = 'success') => {
-    setToast({ message, type, key: Date.now() })
+  const showToast = useCallback((message, type = 'success', action) => {
+    setToast({ message, type, action, key: Date.now() })
   }, [])
 
   if (!isAuthenticated) {
@@ -67,7 +67,7 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {toast && (
-        <Toast key={toast.key} message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        <Toast key={toast.key} message={toast.message} type={toast.type} action={toast.action} onClose={() => setToast(null)} />
       )}
     </>
   )
