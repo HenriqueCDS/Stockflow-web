@@ -3,6 +3,7 @@ import { UserCircle, Save } from 'lucide-react'
 import { userApi } from '../api/api'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
+import ThemeSelector from '../components/ThemeSelector'
 
 const roleLabel = { OWNER: 'Dono', MEMBER: 'Membro' }
 
@@ -51,7 +52,7 @@ export default function Profile({ showToast }) {
 
       <div className="card" style={{ maxWidth: 480 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <UserCircle size={22} color="#ff7a00" />
+          <UserCircle size={22} color="var(--primary)" />
           <h2 style={{ fontSize: 17, fontWeight: 700 }}>Dados Pessoais</h2>
         </div>
         <form onSubmit={handleSubmit}>
@@ -75,6 +76,11 @@ export default function Profile({ showToast }) {
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </form>
+      </div>
+
+      <div className="card" style={{ maxWidth: 480, marginTop: 20 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 14 }}>Aparência</h2>
+        <ThemeSelector />
       </div>
     </div>
   )

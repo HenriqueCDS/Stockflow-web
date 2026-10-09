@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Home, Save, Users, Copy, RefreshCw, Trash2, Crown } from 'lucide-react'
+import { Home, Save, Users, Copy, RefreshCw, Trash2, Share2, Palette } from 'lucide-react'
 import { houseApi } from '../api/api'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ConfirmModal from '../components/ConfirmModal'
+import ErrorState from '../components/ErrorState'
+import ActionMenu from '../components/ActionMenu'
+import Avatar from '../components/Avatar'
+import ThemeSelector from '../components/ThemeSelector'
 
 const emptyForm = { name: '', email: '', phone: '', address: '' }
 
@@ -12,6 +16,8 @@ export default function HousePage({ showToast }) {
   const isOwner = user?.role === 'OWNER'
 
   const [form, setForm] = useState(emptyForm)
+  const [saved, setSaved] = useState(emptyForm)
+  const [loadError, setLoadError] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,13 +28,16 @@ export default function HousePage({ showToast }) {
 
   const load = () => {
     setLoading(true)
+    setLoadError(false)
     Promise.all([houseApi.get(), houseApi.members()])
       .then(([house, memberList]) => {
-        setForm({ name: house.name || '', email: house.email || '', phone: house.phone || '', address: house.address || '' })
+        const loaded = { name: house.name || '', email: house.email || '', phone: house.phone || '', address: house.address || '' }
+        setForm(loaded)
+        setSaved(loaded)
         setInviteCode(house.inviteCode || '')
         setMembers(memberList || [])
       })
-      .catch(() => showToast('Erro ao carregar dados da casa', 'error'))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false))
   }
 
@@ -41,6 +50,7 @@ export default function HousePage({ showToast }) {
     setSaving(true)
     try {
       await houseApi.update(form)
+      setSaved(form)
       showToast('Dados da casa atualizados com sucesso!')
     } catch (err) {
       showToast(err.message, 'error')
@@ -56,6 +66,12 @@ export default function HousePage({ showToast }) {
     } catch {
       showToast('Não foi possível copiar o código', 'error')
     }
+  }
+
+  const handleShareInvite = async () => {
+    try {
+      await navigator.share({ title: 'Convite HomeStock', text: `Entre na minha casa no HomeStock com o código: ${inviteCode}` })
+    } catch { /* cancelado pela pessoa */ }
   }
 
   const handleRotateInvite = async () => {
@@ -85,6 +101,9 @@ export default function HousePage({ showToast }) {
   }
 
   if (loading) return <LoadingSpinner text="Carregando dados da casa..." />
+  if (loadError) return <div className="card"><ErrorState onRetry={load} /></div>
+
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved)
 
   return (
     <div>
@@ -95,10 +114,32 @@ export default function HousePage({ showToast }) {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 20, background: 'var(--primary-soft)', borderColor: 'var(--primary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <Users size={22} color="var(--primary-ink)" />
+          <h2 style={{ fontSize: 17, fontWeight: 700 }}>Código de convite</h2>
+        </div>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 14 }}>Compartilhe este código para que alguém entre na sua casa.</p>
+        <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 'clamp(28px, 5vw, 40px)', letterSpacing: 4, color: 'var(--primary-ink)', marginBottom: 16, wordBreak: 'break-all' }}>
+          {inviteCode || '—'}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-primary" onClick={handleCopyInvite}><Copy size={16} /> Copiar código</button>
+          {typeof navigator !== 'undefined' && navigator.share && (
+            <button type="button" className="btn btn-outline" onClick={handleShareInvite}><Share2 size={16} /> Compartilhar</button>
+          )}
+          {isOwner && (
+            <button type="button" className="btn btn-outline" disabled={rotating} onClick={() => setConfirmRotate(true)}>
+              <RefreshCw size={16} /> {rotating ? 'Gerando...' : 'Gerar novo'}
+            </button>
+          )}
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <Home size={22} color="#ff7a00" />
+            <Home size={22} color="var(--primary)" />
             <h2 style={{ fontSize: 17, fontWeight: 700 }}>Dados da Casa</h2>
           </div>
           <form onSubmit={handleSubmit}>
@@ -118,7 +159,7 @@ export default function HousePage({ showToast }) {
               <label className="form-label">Endereço</label>
               <input className="form-input" value={form.address} onChange={set('address')} />
             </div>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !dirty}>
               <Save size={18} />
               {saving ? 'Salvando...' : 'Salvar Alterações'}
             </button>
@@ -126,50 +167,37 @@ export default function HousePage({ showToast }) {
         </div>
 
         <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <Users size={22} color="#ff7a00" />
-              <h2 style={{ fontSize: 17, fontWeight: 700 }}>Código de convite</h2>
-            </div>
-            <p style={{ color: '#6b6b66', fontSize: 14, marginBottom: 14 }}>Compartilhe este código para que alguém entre na sua casa.</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <input className="form-input" readOnly value={inviteCode} style={{ fontFamily: 'var(--mono, monospace)', fontWeight: 700, letterSpacing: 1 }} />
-              <button type="button" className="btn btn-outline" onClick={handleCopyInvite} aria-label="Copiar código">
-                <Copy size={16} />
-              </button>
-            </div>
-            {isOwner && (
-              <button type="button" className="btn btn-outline" disabled={rotating} onClick={() => setConfirmRotate(true)}>
-                <RefreshCw size={16} />
-                {rotating ? 'Gerando...' : 'Gerar novo código'}
-              </button>
-            )}
-          </div>
-
           <div className="card">
             <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 16 }}>Moradores</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {members.map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 8, background: '#f6f5f0' }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {m.name}
-                      {m.role === 'OWNER' && <Crown size={14} color="#d97706" />}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#9a9a92' }}>{m.email}</div>
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--surface-2)' }}>
+                  <Avatar name={m.name} size={34} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name}{m.id === user?.id && <span className="metric-note"> (você)</span>}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</div>
                   </div>
+                  <span className={`badge ${m.role === 'OWNER' ? 'badge-warning' : 'badge-gray'}`}>{m.role === 'OWNER' ? 'Dono' : 'Morador'}</span>
                   {isOwner && m.role !== 'OWNER' && m.id !== user?.id && (
-                    <button className="btn" style={{ padding: '6px 10px', background: '#fee2e2', color: '#dc2626', border: 'none' }}
-                      onClick={() => setRemoveTarget(m)} aria-label={`Remover ${m.name}`}>
-                      <Trash2 size={14} />
-                    </button>
+                    <ActionMenu label={`Ações para ${m.name}`} items={[{ label: 'Remover', icon: Trash2, danger: true, onClick: () => setRemoveTarget(m) }]} />
                   )}
                 </div>
               ))}
-              {members.length === 0 && <p style={{ color: '#9a9a92', fontSize: 14 }}>Nenhum morador encontrado.</p>}
+              {members.length === 1 && (
+                <p style={{ color: 'var(--muted)', fontSize: 14, padding: '4px 2px' }}>Você é o único morador. Compartilhe o código.</p>
+              )}
+              {members.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Nenhum morador encontrado.</p>}
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <Palette size={22} color="var(--primary)" />
+          <h2 style={{ fontSize: 17, fontWeight: 700 }}>Aparência</h2>
+        </div>
+        <ThemeSelector />
       </div>
 
       {confirmRotate && (
