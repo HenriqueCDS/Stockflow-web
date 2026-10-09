@@ -172,7 +172,8 @@ export default function House3D() {
     controls.enableDamping = true
     controls.enablePan = false
     controls.maxPolarAngle = Math.PI
-    controls.autoRotate = true
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    controls.autoRotate = !reduceMotion
     controls.autoRotateSpeed = 1.2
     controls.addEventListener('start', () => { controls.autoRotate = false; view.style.cursor = 'grabbing' })
     controls.addEventListener('end', () => { view.style.cursor = 'grab' })
@@ -212,20 +213,26 @@ export default function House3D() {
     resize()
 
     const clock = new THREE.Clock()
-    let raf
+    let raf = 0
     const tick = () => {
       raf = requestAnimationFrame(tick)
       const t = clock.getElapsedTime()
       const s = THREE.MathUtils.lerp(house.scale.x, hovered ? 1.04 : 1, 0.1)
       house.scale.setScalar(s)
-      house.position.y = baseY + Math.sin(t * 1.4) * 0.06
+      house.position.y = baseY + (reduceMotion ? 0 : Math.sin(t * 1.4) * 0.06)
       controls.update()
       renderer.render(scene, camera)
     }
-    tick()
+    // Pausa a animação quando o painel sai da tela
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { if (!raf) tick() }
+      else { cancelAnimationFrame(raf); raf = 0 }
+    })
+    io.observe(mount)
 
     return () => {
       cancelAnimationFrame(raf)
+      io.disconnect()
       ro.disconnect()
       view.removeEventListener('pointermove', onMove)
       view.removeEventListener('pointerleave', onLeave)
