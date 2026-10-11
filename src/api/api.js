@@ -114,7 +114,10 @@ api.interceptors.response.use(
 // Autenticação
 export const authApi = {
   login: (email, password) => api.post('/auth/login', { email, password }).then(r => r.data),
-  register: (data) => api.post('/auth/register', data).then(r => r.data),
+  // Swagger: RegisterRequestDTO { name, email, password, companyName, companyCnpj }
+  register: ({ houseName, ...rest }) =>
+    api.post('/auth/register', { ...rest, companyName: houseName ?? rest.companyName }).then(r => r.data),
+  // Sem endpoint no swagger atual (/auth/join)
   join: (data) => api.post('/auth/join', data).then(r => r.data),
   logout: () => api.post('/auth/logout').then(r => r.data)
 }
@@ -125,7 +128,8 @@ export const userApi = {
   updateProfile: (data) => api.put('/users/me', data).then(r => r.data)
 }
 
-// Casa (rota /company no backend, sem CNPJ) + membros e código de convite
+// Casa (rota /company no backend) + membros e código de convite
+// Swagger atual só expõe GET/PUT /company; members, invite-code e shopping-list ainda não existem no backend
 export const houseApi = {
   get: () => api.get('/company').then(r => r.data),
   update: (data) => api.put('/company', data).then(r => r.data),
@@ -141,11 +145,14 @@ export const productApi = {
   create: (data) => api.post('/products', data).then(r => r.data),
   update: (id, data) => api.put(`/products/${id}`, data).then(r => r.data),
   deactivate: (id) => api.delete(`/products/${id}`).then(r => r.data),
-  use: (id, quantity = 1) => api.post(`/products/${id}/use`, null, { params: { quantity } }).then(r => r.data),
-  discard: (id, quantity = 1) => api.post(`/products/${id}/discard`, null, { params: { quantity } }).then(r => r.data)
+  // Swagger não tem /products/{id}/use|discard: usa-se POST /stock-movements/adjust com type EXIT
+  use: (id, quantity = 1) =>
+    api.post('/stock-movements/adjust', { productId: id, type: 'EXIT', quantity, notes: 'Uso' }).then(r => r.data),
+  discard: (id, quantity = 1) =>
+    api.post('/stock-movements/adjust', { productId: id, type: 'EXIT', quantity, notes: 'Descarte' }).then(r => r.data)
 }
 
-// Movimentações de estoque (type: ENTRY | USED | DISCARDED | EXIT | ADJUSTMENT | RETURN)
+// Movimentações de estoque (swagger: type ENTRY | EXIT | ADJUSTMENT | RETURN)
 export const stockApi = {
   adjust: (data) => api.post('/stock-movements/adjust', data).then(r => r.data),
   list: (params) => api.get('/stock-movements', { params }).then(r => r.data),
@@ -165,6 +172,7 @@ export const invoiceApi = {
   },
   confirm: (id) => api.post(`/nfce/${id}/confirm`).then(r => r.data),
   reject: (id) => api.post(`/nfce/${id}/reject`).then(r => r.data),
+  // Sem endpoint no swagger atual (PATCH /nfce/{invoiceId}/items/{itemId})
   reviewItem: (invoiceId, itemId, data) => api.patch(`/nfce/${invoiceId}/items/${itemId}`, data).then(r => r.data)
 }
 

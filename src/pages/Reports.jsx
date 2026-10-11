@@ -10,11 +10,11 @@ import LoadingSpinner from '../components/LoadingSpinner'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Filler)
 ChartJS.defaults.font.family = "'Schibsted Grotesk', 'Inter', sans-serif"
-ChartJS.defaults.color = '#6b6b66'
+ChartJS.defaults.color = '#8E8E97'
 
 const COLORS = {
   primary: '#ff7a00', success: '#16a34a', danger: '#dc2626', warning: '#d97706',
-  info: '#0284c7', neutral: '#9a9a92', grid: '#e6e4dc'
+  info: '#0284c7', neutral: '#9a9a92', grid: 'rgba(128,128,128,.2)'
 }
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const MONTHS_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -90,13 +90,13 @@ function Overview({ report }) {
   return (
     <>
       <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <Kpi icon={Package} color={COLORS.primary} bg="#fbeadb" label="Total de produtos" value={report.totalProducts} />
-        <Kpi icon={Package} color={COLORS.success} bg="#dcfce7" label="Produtos ativos" value={report.activeProducts} />
-        <Kpi icon={AlertTriangle} color={COLORS.warning} bg="#fef3c7" label="Estoque baixo" value={report.lowStock.length} />
-        <Kpi icon={TrendingDown} color={COLORS.danger} bg="#fee2e2" label="Sem estoque" value={report.outOfStock.length} />
+        <Kpi icon={Package} color={COLORS.primary} bg="var(--primary-soft)" label="Total de produtos" value={report.totalProducts} />
+        <Kpi icon={Package} color={COLORS.success} bg="var(--good-soft)" label="Produtos ativos" value={report.activeProducts} />
+        <Kpi icon={AlertTriangle} color={COLORS.warning} bg="var(--warn-soft)" label="Estoque baixo" value={report.lowStock.length} />
+        <Kpi icon={TrendingDown} color={COLORS.danger} bg="var(--bad-soft)" label="Sem estoque" value={report.outOfStock.length} />
       </div>
 
-      <div className="card" style={{ marginBottom: 20, padding: 28, textAlign: 'center', background: 'linear-gradient(135deg, #1a1a1a, #2a2a2a)', color: 'white', borderRadius: 16 }}>
+      <div className="card" style={{ marginBottom: 20, padding: 28, textAlign: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 16 }}>
         <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8 }}>GASTO DO MÊS</div>
         <div style={{ fontSize: 42, fontWeight: 800 }}>{fmtCurrency(report.monthlySpend)}</div>
       </div>
@@ -106,7 +106,7 @@ function Overview({ report }) {
           <Doughnut
             data={{
               labels: ['Saudável', 'Estoque baixo', 'Sem estoque'],
-              datasets: [{ data: [healthy, report.lowStock.length, report.outOfStock.length], backgroundColor: [COLORS.success, COLORS.warning, COLORS.danger], borderWidth: 2, borderColor: '#fff' }]
+              datasets: [{ data: [healthy, report.lowStock.length, report.outOfStock.length], backgroundColor: [COLORS.success, COLORS.warning, COLORS.danger], borderWidth: 2, borderColor: 'transparent' }]
             }}
             options={{ responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: baseOptions.plugins }}
           />
@@ -121,14 +121,14 @@ function Overview({ report }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {report.lowStock.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fef3c7', borderRadius: 8, border: '1px solid #fde68a' }}>
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--warn-soft)', borderRadius: 8, border: '1px solid var(--warn)' }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: 13, color: '#92400e' }}>Mínimo: {p.minimumStock} unidades</div>
+                  <div style={{ fontSize: 13, color: 'var(--warn)' }}>Mínimo: {p.minimumStock} unidades</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.warning }}>{p.currentStock}</div>
-                  <div style={{ fontSize: 12, color: '#92400e' }}>disponíveis</div>
+                  <div style={{ fontSize: 12, color: 'var(--warn)' }}>disponíveis</div>
                 </div>
               </div>
             ))}
@@ -144,7 +144,7 @@ function Overview({ report }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {report.outOfStock.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fecaca' }}>
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bad-soft)', borderRadius: 8, border: '1px solid var(--bad)' }}>
                 <div style={{ fontWeight: 600 }}>{p.name}</div>
                 <span className="badge badge-danger">Sem estoque</span>
               </div>
@@ -232,7 +232,7 @@ function Monthly({ movements }) {
             {[null, ...MONTHS.keys()].map(i => (
               <button key={i ?? 'all'} className="btn" onClick={() => setMonth(i)}
                 style={{ padding: '6px 12px', fontSize: 13, border: 'none',
-                  background: month === i ? COLORS.primary : '#f1f0ea', color: month === i ? 'white' : '#4a4a46' }}>
+                  background: month === i ? COLORS.primary : 'var(--surface-2)', color: month === i ? 'white' : 'var(--text-2)' }}>
                 {i === null ? 'Ano todo' : MONTHS[i]}
               </button>
             ))}
@@ -245,11 +245,11 @@ function Monthly({ movements }) {
       ) : (
         <>
           <div className="stats-grid" style={{ marginBottom: 24 }}>
-            <Kpi icon={ArrowUpCircle} color={COLORS.success} bg="#dcfce7" label={`Entradas · ${periodLabel}`} value={fmtNumber(totals.entries)} note="unidades (entradas + devoluções)" />
-            <Kpi icon={ArrowDownCircle} color={COLORS.danger} bg="#fee2e2" label={`Saídas · ${periodLabel}`} value={fmtNumber(totals.exits)}
+            <Kpi icon={ArrowUpCircle} color={COLORS.success} bg="var(--good-soft)" label={`Entradas · ${periodLabel}`} value={fmtNumber(totals.entries)} note="unidades (entradas + devoluções)" />
+            <Kpi icon={ArrowDownCircle} color={COLORS.danger} bg="var(--bad-soft)" label={`Saídas · ${periodLabel}`} value={fmtNumber(totals.exits)}
               note={exitVariation !== null ? `${exitVariation >= 0 ? '▲' : '▼'} ${Math.abs(exitVariation).toFixed(1)}% vs. mês anterior` : 'unidades consumidas'} />
-            <Kpi icon={Scale} color={balance >= 0 ? COLORS.info : COLORS.warning} bg={balance >= 0 ? '#e0f2fe' : '#fef3c7'} label="Saldo do período" value={`${balance > 0 ? '+' : ''}${fmtNumber(balance)}`} note={balance >= 0 ? 'estoque cresceu' : 'estoque encolheu'} />
-            <Kpi icon={Activity} color={COLORS.primary} bg="#fbeadb" label="Movimentações" value={totals.count}
+            <Kpi icon={Scale} color={balance >= 0 ? COLORS.info : COLORS.warning} bg={balance >= 0 ? 'var(--info-soft)' : 'var(--warn-soft)'} label="Saldo do período" value={`${balance > 0 ? '+' : ''}${fmtNumber(balance)}`} note={balance >= 0 ? 'estoque cresceu' : 'estoque encolheu'} />
+            <Kpi icon={Activity} color={COLORS.primary} bg="var(--primary-soft)" label="Movimentações" value={totals.count}
               note={month === null ? `média de ${fmtNumber(avgExits)} saídas/mês` : undefined} />
           </div>
 
@@ -286,7 +286,7 @@ function Monthly({ movements }) {
               <Doughnut
                 data={{
                   labels: Object.values(TYPES).map(t => t.label),
-                  datasets: [{ data: Object.keys(TYPES).map(k => totals.byType[k]), backgroundColor: Object.values(TYPES).map(t => t.color), borderWidth: 2, borderColor: '#fff' }]
+                  datasets: [{ data: Object.keys(TYPES).map(k => totals.byType[k]), backgroundColor: Object.values(TYPES).map(t => t.color), borderWidth: 2, borderColor: 'transparent' }]
                 }}
                 options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: baseOptions.plugins }}
               />
@@ -317,7 +317,7 @@ function Monthly({ movements }) {
                     const v = prev > 0 && m.count > 0 ? ((m.exits - prev) / prev) * 100 : null
                     const bal = m.entries - m.exits
                     return (
-                      <tr key={i} onClick={() => setMonth(i)} style={{ cursor: 'pointer', background: month === i ? '#fbeadb' : undefined, opacity: m.count ? 1 : 0.45 }}>
+                      <tr key={i} onClick={() => setMonth(i)} style={{ cursor: 'pointer', background: month === i ? 'var(--primary-soft)' : undefined, opacity: m.count ? 1 : 0.45 }}>
                         <td style={{ fontWeight: 600 }}>{MONTHS_FULL[i]}</td>
                         <td style={{ color: COLORS.success, fontWeight: 600 }}>{fmtNumber(m.entries)}</td>
                         <td style={{ color: COLORS.danger, fontWeight: 600 }}>{fmtNumber(m.exits)}</td>
